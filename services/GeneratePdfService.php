@@ -24,7 +24,7 @@ class GeneratePdfService
             throw new NotFoundHttpException("Форма не найдена.");
         }
 
-        $html = Yii::$app->controller->renderPartial('/form/pdf', ['model' => $model]);
+        $html = Yii::$app->controller->renderPartial('/form/pdf', ['model' => $model, 'pdfData' => null]);
 
         $pdf = new Mpdf([
             'format' => 'A4',

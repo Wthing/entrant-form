@@ -16,9 +16,24 @@ class FormController extends Controller
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             $pdfService = new GeneratePdfService();
+
             $pdfService->generate($model->id);
+
+            $pattern = 'uploads/pdf/' . $model->surname . '_' . $model->first_name . '_' . $model->patronymic . '_' . $model->id . '_*.pdf';
+            $matches = glob($pattern);
+
+            if (!empty($matches)) {
+                $doc = file_get_contents($matches[0]);
+            } else {
+                throw new NotFoundHttpException('Файл не найден.');
+            }
+
+            $bas64 = base64_encode($doc);
+            $xml = new \SimpleXMLElement("<?xml version='1.0' standalone='yes'?><data></data>");
+            $xml->addChild('document', "$bas64");
             return $this->render('pdf',
-                ['model' => $model]);
+                ['model' => $model,
+                    'pdfData' => $xml->asXML()]);
         }
 
         return $this->render('form', [

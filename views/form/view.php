@@ -171,6 +171,6 @@ $this->params['breadcrumbs'][] = $this->title;
     <textarea type="text" hidden id="dataToSign" rows="3"><?=$pdfData ?></textarea>
     <?php ActiveForm::end(); ?>
 
-    <button type="button" onclick="clickSign()">Sign</button>
+    <button type="button" onclick="clickSign()">Sign</button type="button">
 
 </div>
