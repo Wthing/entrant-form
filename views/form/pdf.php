@@ -14,6 +14,12 @@ $types = [
 ?>
 
 <style>
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+    }
+
     body {
         font-family: "Times New Roman", serif;
         font-size: 10pt;
@@ -55,6 +61,10 @@ $types = [
         margin-top: 25mm;
     }
 </style>
+
+<div class="no-print" style="margin-top: 20px;">
+    <?= Html::a('Подписать', ['form/view', 'formId' => $model->id], ['class' => 'btn btn-primary']) ?>
+</div>
 
 <div class="header-right-cap">Приложение 2</div>
 

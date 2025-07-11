@@ -4,6 +4,7 @@ namespace app\services;
 
 use app\models\Form;
 use Mpdf\Mpdf;
+use Mpdf\Output\Destination;
 use Yii;
 use yii\web\NotFoundHttpException;
 
@@ -40,10 +41,10 @@ class GeneratePdfService
             mkdir($pdfDir, 0777, true);
         }
 
-        $fileName = 'form_' . $model->id . '_' . time() . '.pdf';
+        $fileName = $model->surname . '_' . $model->first_name . '_' . $model->patronymic . '_' . $model->id . '_' . time() . '.pdf';
         $pdfPath = $pdfDir . '/' . $fileName;
 
-        $pdf->Output($pdfPath, \Mpdf\Output\Destination::FILE);
+        $pdf->Output($pdfPath, Destination::FILE);
 
         return $pdfPath;
     }
