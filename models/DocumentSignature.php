@@ -16,6 +16,7 @@ use Yii;
  * @property int $valid_from
  * @property int $valid_until
  * @property int $signed_at
+ * @property string $iin
  */
 class DocumentSignature extends \yii\db\ActiveRecord
 {
@@ -37,6 +38,7 @@ class DocumentSignature extends \yii\db\ActiveRecord
         return [
             [['document_id', 'pdf_path', 'signature_path', 'subject_dn', 'serial_number', 'valid_from', 'valid_until', 'signed_at'], 'required'],
             [['document_id', 'valid_from', 'valid_until', 'signed_at'], 'integer'],
+            [['iin'], 'string', 'max' => 12],
             [['pdf_path', 'signature_path', 'subject_dn', 'serial_number'], 'string', 'max' => 255],
         ];
     }
@@ -56,6 +58,7 @@ class DocumentSignature extends \yii\db\ActiveRecord
             'valid_from' => Yii::t('app', 'Valid From'),
             'valid_until' => Yii::t('app', 'Valid Until'),
             'signed_at' => Yii::t('app', 'Signed At'),
+            'iin' => Yii::t('app', 'Iin'),
         ];
     }
 

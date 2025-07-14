@@ -72,10 +72,6 @@ $types = [
     }
 
     async function processSign (){
-
-        // const dataToSign = document.getElementById('dataToSign').value;
-        // const formId = document.getElementById('formId').value;
-
         // debugger
         // const signatureType = 'cms';
         const signatureType = 'xml';
@@ -88,12 +84,11 @@ $types = [
         const caCertsString = '';
         let caCerts=null;
         const localeRadio = 'ru';
-        const iin = '050729551298';
+        const iin = '';
         const bin='';
         const serialNumber='';
         const tsaProfile = null;
         let selectedStorages = ['PKCS12', 'AKKaztoken', 'WEB', 'CAPI', 'NCALayer'];
-        // let extKeyUsageOids = ["1.3.6.1.5.5.7.3.3"]; // digitalSignature OID
 
 
         let signInfo = {

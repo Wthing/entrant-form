@@ -81,8 +81,11 @@ class FormController extends Controller
         $sigPath = $pdfDir . '/' . $sigFileName;
         file_put_contents($sigPath, $signData);
 
-        // 🔎 Парсим XML-подпись
         $certXml = simplexml_load_string($signData);
+        if ($certXml === false) {
+            throw new \RuntimeException('Ошибка разбора XML-подписи');
+        }
+
         $certXml->registerXPathNamespace('ds', 'http://www.w3.org/2000/09/xmldsig#');
         $certData = $certXml->xpath('//ds:X509Certificate');
 
@@ -91,11 +94,24 @@ class FormController extends Controller
         }
 
         $certRaw = base64_decode((string)$certData[0]);
-//        $x509 = openssl_x509_parse($certRaw);
-//
-//        if (!$x509) {
-//            throw new \RuntimeException('Ошибка при парсинге X.509 сертификата');
-//        }
+        $pem = "-----BEGIN CERTIFICATE-----\n" .
+            chunk_split(base64_encode($certRaw), 64, "\n") .
+            "-----END CERTIFICATE-----\n";
+
+        $x509 = openssl_x509_parse($pem);
+        if (!$x509) {
+            throw new \RuntimeException('Ошибка при парсинге X.509 PEM-сертификата');
+        }
+
+        $subject = $x509['subject']['CN'] ?? null;
+
+        $serialRaw = $x509['subject']['serialNumber'] ?? null;
+
+        if (!$serialRaw || !preg_match('/^IIN(\d{12})$/', $serialRaw, $matches)) {
+            throw new \RuntimeException('Некорректный или отсутствующий ИИН в сертификате');
+        }
+
+        $iin = $matches[1];
 
         $document = Document::find()->where(['form_id' => $model->id])->one();
         if (!$document) {
@@ -106,22 +122,17 @@ class FormController extends Controller
         $signature->document_id = $document->id;
         $signature->pdf_path = str_replace(Yii::getAlias('@webroot'), '', $doc);
         $signature->signature_path = str_replace(Yii::getAlias('@webroot'), '', $sigPath);
-        $signature->subject_dn = '-'; // заменить позже
-        $signature->serial_number = '-';
-        $signature->valid_from = time();
-        $signature->valid_until = time() + 365 * 24 * 3600;
+        $signature->subject_dn = $subject;
+        $signature->serial_number = $x509['serialNumberHex'] ?? '(нет серийного номера)';
+        $signature->valid_from = $x509['validFrom_time_t'] ?? time();
+        $signature->valid_until = $x509['validTo_time_t'] ?? time();
         $signature->signed_at = time();
+        $signature->iin = $iin ?? null;
 
         if (!$signature->save()) {
             Yii::error($signature->getErrors(), 'signature');
             throw new \RuntimeException('Ошибка сохранения подписи: ' . print_r($signature->getErrors(), true));
         }
-
-
-        // ✅ Обновляем форму
-//        $model->signature_file = $sigFileName;
-//        $model->status = 'signed';
-//        $model->save();
 
         return $this->render('success', [
             'model' => $model,
