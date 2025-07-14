@@ -41,7 +41,7 @@ class GeneratePdfService
             mkdir($pdfDir, 0777, true);
         }
 
-        $fileName = $model->surname . '_' . $model->first_name . '_' . $model->patronymic . '_' . $model->id . '_' . time() . '.pdf';
+        $fileName = $model->surname . '_' . $model->first_name . '_' . $model->id . '_' . time() . '.pdf';
         $pdfPath = $pdfDir . '/' . $fileName;
 
         $pdf->Output($pdfPath, Destination::FILE);

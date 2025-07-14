@@ -73,6 +73,9 @@ $types = [
 
     async function processSign (){
 
+        // const dataToSign = document.getElementById('dataToSign').value;
+        // const formId = document.getElementById('formId').value;
+
         // debugger
         // const signatureType = 'cms';
         const signatureType = 'xml';
@@ -85,82 +88,77 @@ $types = [
         const caCertsString = '';
         let caCerts=null;
         const localeRadio = 'ru';
-        const iin = '871203350924';
+        const iin = '050729551298';
         const bin='';
         const serialNumber='';
         const tsaProfile = null;
-        let selectedStorages = ['PKCS12'];
+        let selectedStorages = ['PKCS12', 'AKKaztoken', 'WEB', 'CAPI', 'NCALayer'];
+        // let extKeyUsageOids = ["1.3.6.1.5.5.7.3.3"]; // digitalSignature OID
 
 
         let signInfo = {
-            "module": "kz.gov.pki.knca.basics",
-            "method": "sign",
-            "args": {
-                "allowedStorages": selectedStorages,
-                "format": signatureType,
-                "data": dataToSign,
-                "signingParams": { decode, encapsulate, digested, tsaProfile },
-                "signerParams": {
-                    "extKeyUsageOids": extKeyUsageOids,
-                    "iin": iin,
-                    "bin": bin,
-                    "serialNumber": serialNumber,
-                    "chain": caCerts
+            module: "kz.gov.pki.knca.basics",
+            method: "sign",
+            args: {
+                allowedStorages: selectedStorages,
+                format: "xml",
+                data: getDataSign(),
+                signingParams: {
+                    decode: "true",
+                    encapsulate: "true",
+                    digested: "false",
+                    tsaProfile: null
                 },
-                "locale": localeRadio
+                signerParams: {
+                    extKeyUsageOids: extKeyUsageOids,
+                    iin: iin,
+                    bin: bin,
+                    serialNumber: serialNumber,
+                    chain: null
+                },
+                locale: localeRadio
             }
         }
 
-        return connect().then((webSocket) => {
+        try {
+            const webSocket = await connect();
+            webSocket.send(JSON.stringify(signInfo));
 
-            webSocket.send(JSON.stringify(signInfo))
+            webSocket.onmessage = ({ data }) => {
+                const response = JSON.parse(data);
+                if (response?.status === true && response.body?.result) {
+                    const signed = response.body.result;
 
-            return new Promise((resolve, reject) => {
-                webSocket.onmessage = ({ data }) => {
-                    response = JSON.parse(data);
-                    if (response != null) {
-                        var responseStatus = response['status'];
-                        if (responseStatus === true) {
-                            var responseBody = response['body'];
-                            if (responseBody != null) {
-                                //unblockScreen();
-                                if (responseBody.hasOwnProperty('result')) {
-                                    let  result = responseBody.result;
-                                    //  getDataComplete().value = result;
-                                    var formData = new FormData();
-                                    formData.append("signData",result);
-                                    formData.append("_csrf",yii.getCsrfToken());
-                                    var request = new XMLHttpRequest();
-                                    request.open("POST", "/sign/add");
+                    const formData = new FormData();
+                    formData.append("signData", signed);
+                    formData.append("formId", document.getElementById("formId").value);
+                    formData.append("_csrf", yii.getCsrfToken());
 
-                                    try {
-                                        request.send(formData);
-                                        location.replace(document.URL);
-                                    }catch (e) {
-                                        console.log("error "+e)
-                                    }
+                    const request = new XMLHttpRequest();
+                    request.open("POST", "/form/add");
 
-                                    // debugger
-                                    //$("#signature").val(result);
-                                }
-                            }
-                        } else if (responseStatus === false) {
-                            //unblockScreen();
-                            var responseCode = response['code'];
-                            alert(responseCode);
+                    request.onload = () => {
+                        if (request.status === 200) {
+                            document.open();
+                            document.write(request.responseText);
+                            document.close(); // 👈 это безопасно рендерит success.php
+                        } else {
+                            alert("Ошибка при сохранении подписи: " + request.statusText);
                         }
-                    }
-                    resolve(response);
-                }
-            })
-        })
-            .catch(function (err) {
-                // debugger
-                //unblockScreen();
-                //unblockScreen();
-                console.log(err)
-            });
+                    };
 
+                    request.onerror = () => {
+                        alert("Ошибка сети при отправке подписи");
+                    };
+
+                    request.send(formData);
+                } else {
+                    alert("Ошибка подписи: " + response?.code ?? "Неизвестная ошибка");
+                }
+            };
+        } catch (err) {
+            alert("Ошибка подключения к модулю подписи: " + err);
+        }
     }
 
     async function clickSign() {
@@ -223,16 +221,23 @@ $types = [
 <!--</div>-->
 
 <div class="document-view no-print mt-4">
-
     <?php $form = ActiveForm::begin(['id' => 'signForm']); ?>
+
+    <!-- Скрытые данные -->
     <textarea type="text" hidden id="dataToSign" rows="3"><?= Html::encode($pdfData) ?></textarea>
+    <input type="hidden" id="formId" value="<?= $model->id ?>">
+
     <?php ActiveForm::end(); ?>
 
-    <button type="button" class="btn btn-lg btn-success shadow-sm px-4 py-2 mt-3" onclick="clickSign()">
+    <!-- Кнопка подписи -->
+    <button type="button"
+            class="btn btn-lg btn-success shadow-sm px-4 py-2 mt-3"
+            onclick="clickSign()"
+    >
         <i class="bi bi-pen-fill me-2"></i> Подписать документ
     </button>
-
 </div>
+
 
 
 <div class="header-right-cap">Приложение 2</div>
