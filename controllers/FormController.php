@@ -6,12 +6,19 @@ use app\models\Document;
 use app\models\DocumentSignature;
 use app\models\Form;
 use app\services\GeneratePdfService;
+use DateTime;
+use Exception;
 use Yii;
+use yii\db\Query;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 
 class FormController extends Controller
 {
+    public const APPLICANT = 'applicant';
+    public const PARENT = 'parent';
+    public const SECRETARY = 'secretary';
+
     public function actionCreate()
     {
         $userId = Yii::$app->user->id;
@@ -23,7 +30,7 @@ class FormController extends Controller
 
             $pdfService->generate($model->id);
 
-            $pattern = 'uploads/pdf/' . $model->surname . '_' . $model->first_name . '_' . $model->id . '_*.pdf';
+            $pattern = 'uploads/' . $userId . '_' . $model->surname . '_' . $model->first_name . '/' . $model->surname . '_' . $model->first_name . '_' . $model->id . '_*.pdf';
             $matches = glob($pattern);
 
             if (!empty($matches)) {
@@ -52,6 +59,7 @@ class FormController extends Controller
 
     public function actionAdd()
     {
+        $userId = Yii::$app->user->id;
         $signData = Yii::$app->request->post('signData');
         $formId = Yii::$app->request->post('formId');
         Yii::info($formId);
@@ -61,13 +69,12 @@ class FormController extends Controller
             throw new NotFoundHttpException("Форма не найдена");
         }
 
-        $pdfDir = Yii::getAlias('@webroot/uploads/pdf');
+        $pdfDir = Yii::getAlias('@webroot/uploads/' . $userId . '_' . $model->surname . '_' . $model->first_name);
         if (!is_dir($pdfDir)) {
             mkdir($pdfDir, 0777, true);
         }
 
-        // 🔍 Ищем PDF-файл
-        $pattern = 'uploads/pdf/' . $model->surname . '_' . $model->first_name . '_' . $model->id . '_*.pdf';
+        $pattern = 'uploads/' . $userId . '_' . $model->surname . '_' . $model->first_name . '/' . $model->surname . '_' . $model->first_name . '_' . $model->id . '_*.pdf';
         $matches = glob($pattern);
 
         if (!empty($matches)) {
@@ -76,7 +83,6 @@ class FormController extends Controller
             throw new NotFoundHttpException('Файл не найден.');
         }
 
-        // 🖊️ Сохраняем SIG-файл
         $sigFileName = 'signature_' . $model->id . '_' . time() . '.sig';
         $sigPath = $pdfDir . '/' . $sigFileName;
         file_put_contents($sigPath, $signData);
@@ -105,6 +111,13 @@ class FormController extends Controller
 
         $subject = $x509['subject']['CN'] ?? null;
 
+        $fullName = trim($model->surname . ' ' . $model->first_name);
+        if ($subject === mb_strtoupper($fullName, 'UTF-8')) {
+            $role = self::APPLICANT;
+        } else {
+            $role = self::PARENT;
+        }
+
         $serialRaw = $x509['subject']['serialNumber'] ?? null;
 
         if (!$serialRaw || !preg_match('/^IIN(\d{12})$/', $serialRaw, $matches)) {
@@ -112,6 +125,19 @@ class FormController extends Controller
         }
 
         $iin = $matches[1];
+
+        $birthDate = $this->getBirthDateFromIIN($iin);
+
+        if (!$birthDate) {
+            throw new \RuntimeException('Не удалось определить дату рождения из ИИН');
+        }
+
+        $age = $birthDate->diff(new DateTime())->y;
+
+        if ($age < 18) {
+            throw new \RuntimeException('Подписание запрещено: возраст заявителя менее 18 лет');
+        }
+
 
         $document = Document::find()->where(['form_id' => $model->id])->one();
         if (!$document) {
@@ -128,6 +154,7 @@ class FormController extends Controller
         $signature->valid_until = $x509['validTo_time_t'] ?? time();
         $signature->signed_at = time();
         $signature->iin = $iin ?? null;
+        $signature->signer_role = $role;
 
         if (!$signature->save()) {
             Yii::error($signature->getErrors(), 'signature');
@@ -138,6 +165,53 @@ class FormController extends Controller
             'model' => $model,
         ]);
     }
+
+    public function actionSecretary()
+    {
+        $forms = Form::find()
+            ->joinWith('documents.signatures s1')
+            ->where(['s1.signer_role' => ['applicant', 'parent']])
+            ->andWhere(['not exists',
+                DocumentSignature::find()
+                    ->alias('s2')
+                    ->join('INNER JOIN', 'document d', 'd.id = s2.document_id')
+                    ->where('d.form_id = form.id')
+                    ->andWhere(['s2.signer_role' => 'secretary'])
+            ])
+            ->groupBy('form.id')
+            ->all();
+
+        return $this->render('secretary', ['forms' => $forms]);
+    }
+
+
+    function getBirthDateFromIIN(string $iin): ?DateTime {
+        if (!preg_match('/^(\d{2})(\d{2})(\d{2})(\d)/', $iin, $m)) {
+            return null;
+        }
+
+        [$_, $yy, $mm, $dd, $centuryDigit] = $m;
+
+        $century = match ((int)$centuryDigit) {
+            1, 2 => 1800,
+            3, 4 => 1900,
+            5, 6 => 2000,
+            default => null
+        };
+
+        if ($century === null) return null;
+
+        $fullYear = $century + (int)$yy;
+
+        $dateStr = sprintf('%04d-%02d-%02d', $fullYear, $mm, $dd);
+
+        try {
+            return new DateTime($dateStr);
+        } catch (Exception) {
+            return null;
+        }
+    }
+
 
 
 }

@@ -80,4 +80,9 @@ class Document extends \yii\db\ActiveRecord
         return $this->hasOne(User::class, ['id' => 'user_id']);
     }
 
+    public function getSignatures()
+    {
+        return $this->hasMany(DocumentSignature::class, ['document_id' => 'id']);
+    }
+
 }

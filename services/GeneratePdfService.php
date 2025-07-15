@@ -19,6 +19,7 @@ class GeneratePdfService
      */
     public function generate(int $formId): string
     {
+        $userId = Yii::$app->user->id;
         $model = Form::findOne($formId);
         if (!$model) {
             throw new NotFoundHttpException("Форма не найдена.");
@@ -36,7 +37,7 @@ class GeneratePdfService
 
         $pdf->WriteHTML($html);
 
-        $pdfDir = Yii::getAlias('@webroot/uploads/pdf');
+        $pdfDir = Yii::getAlias('@webroot/uploads/' . $userId . '_' . $model->surname . '_' . $model->first_name);
         if (!is_dir($pdfDir)) {
             mkdir($pdfDir, 0777, true);
         }
