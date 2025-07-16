@@ -64,4 +64,10 @@ class DocumentSignature extends \yii\db\ActiveRecord
         ];
     }
 
+    public function getDocument()
+    {
+        return $this->hasOne(Document::class, ['id' => 'document_id']);
+    }
+
+
 }

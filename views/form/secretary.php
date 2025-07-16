@@ -1,23 +1,77 @@
 <?php
-/** @var $forms */
+/** @var yii\web\View $this */
+/** @var app\models\Form[] $forms */
+
+use yii\helpers\Html;
+
+$this->title = 'Заявки, ожидающие подписи секретаря';
 ?>
 
-<h2>Заявки, ожидающие подписи секретаря</h2>
+<head>
+    <title><?= Html::encode($this->title) ?></title>
+</head>
 
-<table border="1" cellpadding="8">
-    <tr>
-        <th>ID</th>
-        <th>ФИО</th>
-        <th>Действие</th>
-    </tr>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="fw-bold"><?= Html::encode($this->title) ?></h1>
+    </div>
 
-    <?php foreach ($forms as $form): ?>
-        <tr>
-            <td><?= $form->id ?></td>
-            <td><?= $form->surname . ' ' . $form->first_name ?></td>
-            <td>
-                <a href="/form/sign-secretary?id=<?= $form->id ?>">Подписать</a>
-            </td>
-        </tr>
-    <?php endforeach; ?>
-</table>
+    <?php if (empty($forms)): ?>
+        <div class="alert alert-info d-flex align-items-center">
+            <i class="ti ti-info-circle me-2"></i> Нет заявок, ожидающих подписи секретаря.
+        </div>
+    <?php else: ?>
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle shadow-sm rounded">
+                <thead class="table-primary text-center">
+                <tr>
+                    <th>ID</th>
+                    <th>ФИО абитуриента</th>
+                    <th>Подписант</th>
+                    <th>Заявление</th>
+                    <th>Действие</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($forms as $form): ?>
+                    <tr>
+                        <td class="text-center"><?= $form->id ?></td>
+                        <td><?= Html::encode("{$form->surname} {$form->first_name}") ?></td>
+                        <td>
+                            <?php
+                            $sig = $form->documents[0]->signatures ?? [];
+                            $firstSig = $sig[0] ?? null;
+                            echo $firstSig ? Html::encode($firstSig->signer_role . ': ' . $firstSig->iin) : '—';
+                            ?>
+                        </td>
+                        <td class="text-center">
+                            <?php if (!empty($pdfMap[$form->id])): ?>
+                                <?= Html::a('<i class="ti ti-file-text"></i> PDF', $pdfMap[$form->id], [
+                                    'target' => '_blank',
+                                    'class' => 'btn btn-outline-secondary btn-sm'
+                                ]) ?>
+                            <?php else: ?>
+                                —
+                            <?php endif; ?>
+                        </td>
+
+                        <td class="text-center">
+                            <?= Html::a('Подписать', ['form/sign-secretary', 'id' => $form->id, 'doc' => $pdfMap[$form->id]], [
+                                'class' => 'btn btn-outline-primary btn-sm',
+                            ]) ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</div>
+
+<?php
+$this->registerJs(<<<JS
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+        new bootstrap.Tooltip(el);
+    });
+JS);
+?>

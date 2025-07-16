@@ -8,6 +8,7 @@ use app\models\Form;
 use app\services\GeneratePdfService;
 use DateTime;
 use Exception;
+use http\Exception\RuntimeException;
 use Yii;
 use yii\db\Query;
 use yii\web\Controller;
@@ -58,6 +59,173 @@ class FormController extends Controller
     }
 
     public function actionAdd()
+{
+    $userId = Yii::$app->user->id;
+    $signData = Yii::$app->request->post('signData');
+    $formId = Yii::$app->request->post('formId');
+    Yii::info($formId);
+
+    $model = Form::findOne($formId);
+    if (!$model) {
+        throw new NotFoundHttpException("Форма не найдена");
+    }
+
+    $pdfDir = Yii::getAlias('@webroot/uploads/' . $userId . '_' . $model->surname . '_' . $model->first_name);
+    if (!is_dir($pdfDir)) {
+        mkdir($pdfDir, 0777, true);
+    }
+
+    $pattern = 'uploads/' . $userId . '_' . $model->surname . '_' . $model->first_name . '/' . $model->surname . '_' . $model->first_name . '_' . $model->id . '_*.pdf';
+    $matches = glob($pattern);
+
+    if (!empty($matches)) {
+        $doc = basename($matches[0]);
+    } else {
+        throw new NotFoundHttpException('Файл не найден.');
+    }
+
+    // Сохраняем SIG
+    $sigFileName = 'signature_' . $model->id . '_' . time() . '.sig';
+    $sigPath = $pdfDir . '/' . $sigFileName;
+    file_put_contents($sigPath, $signData);
+
+    // Разбор XML подписи
+    $certXml = simplexml_load_string($signData);
+    if ($certXml === false) {
+        throw new \RuntimeException('Ошибка разбора XML-подписи');
+    }
+
+    $certXml->registerXPathNamespace('ds', 'http://www.w3.org/2000/09/xmldsig#');
+    $certData = $certXml->xpath('//ds:X509Certificate');
+    if (!$certData || empty($certData[0])) {
+        throw new \RuntimeException('Не удалось извлечь X509 сертификат из подписи');
+    }
+
+    // Парсим сертификат
+    $certRaw = base64_decode((string)$certData[0]);
+    $pem = "-----BEGIN CERTIFICATE-----\n" .
+        chunk_split(base64_encode($certRaw), 64, "\n") .
+        "-----END CERTIFICATE-----\n";
+
+    $x509 = openssl_x509_parse($pem);
+    if (!$x509) {
+        throw new \RuntimeException('Ошибка при парсинге X.509 PEM-сертификата');
+    }
+
+    $subject = $x509['subject']['CN'] ?? null;
+    $serialRaw = $x509['subject']['serialNumber'] ?? null;
+
+    if (!$serialRaw || !preg_match('/^IIN(\\d{12})$/', $serialRaw, $matches)) {
+        throw new \RuntimeException('Некорректный или отсутствующий ИИН в сертификате');
+    }
+
+    $iin = $matches[1];
+
+    // Определение роли
+    $fullName = mb_strtoupper(trim($model->surname . ' ' . $model->first_name), 'UTF-8');
+    $role = ($subject === $fullName) ? 'applicant' : 'parent';
+
+    // Запрет дубликатов по роли
+    $duplicate = DocumentSignature::find()->where(['subject_dn' => $subject, 'serial_number' => $x509['serialNumberHex']]);
+    if ($duplicate->exists()) {
+        throw new \RuntimeException("Подпись от '{$subject}' уже существует");
+    }
+
+    // Проверка возраста (информативная, не блокирующая)
+    $birthDate = $this->getBirthDateFromIIN($iin);
+    Yii::info($birthDate);
+    if (!$birthDate) {
+        throw new \RuntimeException('Не удалось определить дату рождения из ИИН');
+    }
+
+    $age = $birthDate->diff(new DateTime())->y;
+
+    $document = Document::find()->where(['form_id' => $model->id])->one();
+    if (!$document) {
+        throw new \RuntimeException("Документ не найден для формы ID {$model->id}");
+    }
+
+    $path = DocumentSignature::find()->select('pdf_path')->where(['document_id' => $document->id])->one();
+
+    // Сохраняем подпись
+    $signature = new DocumentSignature();
+    $signature->document_id = $document->id;
+    $signature->pdf_path = str_replace(Yii::getAlias('@webroot'), '', $doc);
+    $signature->signature_path = str_replace(Yii::getAlias('@webroot'), '', $sigPath);
+    $signature->subject_dn = $subject;
+    $signature->serial_number = $x509['serialNumberHex'] ?? '(нет серийного номера)';
+    $signature->valid_from = $x509['validFrom_time_t'] ?? time();
+    $signature->valid_until = $x509['validTo_time_t'] ?? time();
+    $signature->signed_at = time();
+    $signature->iin = $iin;
+    $signature->signer_role = $role;
+
+    if (!$signature->save()) {
+        Yii::error($signature->getErrors(), 'signature');
+        throw new \RuntimeException('Ошибка сохранения подписи: ' . print_r($signature->getErrors(), true));
+    }
+
+        if ($age < 18) {
+            $docData = file_get_contents(Yii::getAlias('@webroot' . $path));
+            $base64 = base64_encode($docData);
+            $xml = new \SimpleXMLElement("<?xml version='1.0' standalone='yes'?><data></data>");
+            $xml->addChild('document', $base64);
+
+            return $this->render('sign-pdf', [
+                'model' => $model,
+                'pdfData' => $xml->asXML()
+            ]);
+        }
+
+        Yii::info($age);
+
+    return $this->render('success', [
+        'model' => $model,
+    ]);
+}
+
+    public function actionSecretary()
+    {
+        $forms = Form::find()
+            ->joinWith('documents.signatures s1')
+            ->where(['s1.signer_role' => ['applicant', 'parent']])
+            ->andWhere(['not exists',
+                DocumentSignature::find()
+                    ->alias('s2')
+                    ->join('INNER JOIN', 'document d', 'd.id = s2.document_id')
+                    ->where('d.form_id = form.id')
+                    ->andWhere(['s2.signer_role' => 'secretary'])
+            ])
+            ->groupBy('form.id')
+            ->all();
+
+        $pdfMap = [];
+
+        foreach ($forms as $form) {
+            $doc = $form->documents[0] ?? null;
+            if (!$doc) {
+                $pdfMap[$form->id] = null;
+                continue;
+            }
+
+            $userId = $doc->user_id;
+            $pattern = 'uploads/' . $userId . '_' . $form->surname . '_' . $form->first_name . '/' . $form->surname . '_' . $form->first_name . '_' . $form->id . '_*.pdf';
+            $matches = glob($pattern);
+
+            if (!empty($matches)) {
+                $pdfMap[$form->id] = '/' . ltrim($matches[0], '/'); // относительный путь для ссылки
+            } else {
+                $pdfMap[$form->id] = null;
+            }
+        }
+
+        return $this->render('secretary', [
+            'forms' => $forms,
+            'pdfMap' => $pdfMap,
+        ]);
+    }
+
+    public function actionAddSecretary()
     {
         $userId = Yii::$app->user->id;
         $signData = Yii::$app->request->post('signData');
@@ -111,13 +279,6 @@ class FormController extends Controller
 
         $subject = $x509['subject']['CN'] ?? null;
 
-        $fullName = trim($model->surname . ' ' . $model->first_name);
-        if ($subject === mb_strtoupper($fullName, 'UTF-8')) {
-            $role = self::APPLICANT;
-        } else {
-            $role = self::PARENT;
-        }
-
         $serialRaw = $x509['subject']['serialNumber'] ?? null;
 
         if (!$serialRaw || !preg_match('/^IIN(\d{12})$/', $serialRaw, $matches)) {
@@ -125,19 +286,6 @@ class FormController extends Controller
         }
 
         $iin = $matches[1];
-
-        $birthDate = $this->getBirthDateFromIIN($iin);
-
-        if (!$birthDate) {
-            throw new \RuntimeException('Не удалось определить дату рождения из ИИН');
-        }
-
-        $age = $birthDate->diff(new DateTime())->y;
-
-        if ($age < 18) {
-            throw new \RuntimeException('Подписание запрещено: возраст заявителя менее 18 лет');
-        }
-
 
         $document = Document::find()->where(['form_id' => $model->id])->one();
         if (!$document) {
@@ -154,7 +302,7 @@ class FormController extends Controller
         $signature->valid_until = $x509['validTo_time_t'] ?? time();
         $signature->signed_at = time();
         $signature->iin = $iin ?? null;
-        $signature->signer_role = $role;
+        $signature->signer_role = self::SECRETARY;
 
         if (!$signature->save()) {
             Yii::error($signature->getErrors(), 'signature');
@@ -166,24 +314,18 @@ class FormController extends Controller
         ]);
     }
 
-    public function actionSecretary()
+    public function actionSignSecretary($id, $doc)
     {
-        $forms = Form::find()
-            ->joinWith('documents.signatures s1')
-            ->where(['s1.signer_role' => ['applicant', 'parent']])
-            ->andWhere(['not exists',
-                DocumentSignature::find()
-                    ->alias('s2')
-                    ->join('INNER JOIN', 'document d', 'd.id = s2.document_id')
-                    ->where('d.form_id = form.id')
-                    ->andWhere(['s2.signer_role' => 'secretary'])
-            ])
-            ->groupBy('form.id')
-            ->all();
+        $model = Form::findOne($id);
+        $document = file_get_contents(Yii::getAlias('@webroot') . $doc);
 
-        return $this->render('secretary', ['forms' => $forms]);
+        $bas64 = base64_encode($document);
+        $xml = new \SimpleXMLElement("<?xml version='1.0' standalone='yes'?><data></data>");
+        $xml->addChild('document', "$bas64");
+        return $this->render('sign-secretary',
+            ['model' => $model,
+                'pdfData' => $xml->asXML()]);
     }
-
 
     function getBirthDateFromIIN(string $iin): ?DateTime {
         if (!preg_match('/^(\d{2})(\d{2})(\d{2})(\d)/', $iin, $m)) {
@@ -211,7 +353,4 @@ class FormController extends Controller
             return null;
         }
     }
-
-
-
 }
