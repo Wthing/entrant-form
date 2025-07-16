@@ -8,9 +8,7 @@ use app\models\Form;
 use app\services\GeneratePdfService;
 use DateTime;
 use Exception;
-use http\Exception\RuntimeException;
 use Yii;
-use yii\db\Query;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 
@@ -59,114 +57,106 @@ class FormController extends Controller
     }
 
     public function actionAdd()
-{
-    $userId = Yii::$app->user->id;
-    $signData = Yii::$app->request->post('signData');
-    $formId = Yii::$app->request->post('formId');
-    Yii::info($formId);
+    {
+        $userId = Yii::$app->user->id;
+        $signData = Yii::$app->request->post('signData');
+        $formId = Yii::$app->request->post('formId');
 
-    $model = Form::findOne($formId);
-    if (!$model) {
-        throw new NotFoundHttpException("Форма не найдена");
-    }
+        $model = Form::findOne($formId);
+        if (!$model) {
+            throw new NotFoundHttpException("Форма не найдена");
+        }
 
-    $pdfDir = Yii::getAlias('@webroot/uploads/' . $userId . '_' . $model->surname . '_' . $model->first_name);
-    if (!is_dir($pdfDir)) {
-        mkdir($pdfDir, 0777, true);
-    }
+        $dirName = $userId . '_' . $model->surname . '_' . $model->first_name;
+        $pdfDir = Yii::getAlias('@webroot/uploads/' . $dirName);
+        if (!is_dir($pdfDir)) {
+            mkdir($pdfDir, 0777, true);
+        }
 
-    $pattern = 'uploads/' . $userId . '_' . $model->surname . '_' . $model->first_name . '/' . $model->surname . '_' . $model->first_name . '_' . $model->id . '_*.pdf';
-    $matches = glob($pattern);
+        $pattern = $pdfDir . '/' . $model->surname . '_' . $model->first_name . '_' . $model->id . '_*.pdf';
+        $matches = glob($pattern);
+        if (empty($matches)) {
+            throw new NotFoundHttpException('Файл не найден.');
+        }
 
-    if (!empty($matches)) {
-        $doc = basename($matches[0]);
-    } else {
-        throw new NotFoundHttpException('Файл не найден.');
-    }
+        $docFullPath = $matches[0];
+        $docWebPath = str_replace(Yii::getAlias('@webroot'), '', $docFullPath);
 
-    // Сохраняем SIG
-    $sigFileName = 'signature_' . $model->id . '_' . time() . '.sig';
-    $sigPath = $pdfDir . '/' . $sigFileName;
-    file_put_contents($sigPath, $signData);
+        $sigFileName = 'signature_' . $model->id . '_' . time() . '.sig';
+        $sigPath = $pdfDir . '/' . $sigFileName;
+        file_put_contents($sigPath, $signData);
 
-    // Разбор XML подписи
-    $certXml = simplexml_load_string($signData);
-    if ($certXml === false) {
-        throw new \RuntimeException('Ошибка разбора XML-подписи');
-    }
+        $certXml = simplexml_load_string($signData);
+        if ($certXml === false) {
+            throw new \RuntimeException('Ошибка разбора XML-подписи');
+        }
 
-    $certXml->registerXPathNamespace('ds', 'http://www.w3.org/2000/09/xmldsig#');
-    $certData = $certXml->xpath('//ds:X509Certificate');
-    if (!$certData || empty($certData[0])) {
-        throw new \RuntimeException('Не удалось извлечь X509 сертификат из подписи');
-    }
+        $certXml->registerXPathNamespace('ds', 'http://www.w3.org/2000/09/xmldsig#');
+        $certData = $certXml->xpath('//ds:X509Certificate');
+        if (empty($certData[0])) {
+            throw new \RuntimeException('Не удалось извлечь сертификат из подписи');
+        }
 
-    // Парсим сертификат
-    $certRaw = base64_decode((string)$certData[0]);
-    $pem = "-----BEGIN CERTIFICATE-----\n" .
-        chunk_split(base64_encode($certRaw), 64, "\n") .
-        "-----END CERTIFICATE-----\n";
+        $certRaw = base64_decode((string)$certData[0]);
+        $pem = "-----BEGIN CERTIFICATE-----\n" . chunk_split(base64_encode($certRaw), 64, "\n") . "-----END CERTIFICATE-----\n";
+        $x509 = openssl_x509_parse($pem);
+        if (!$x509) {
+            throw new \RuntimeException('Ошибка парсинга X.509 PEM сертификата');
+        }
 
-    $x509 = openssl_x509_parse($pem);
-    if (!$x509) {
-        throw new \RuntimeException('Ошибка при парсинге X.509 PEM-сертификата');
-    }
+        $subject = $x509['subject']['CN'] ?? null;
+        $serialRaw = $x509['subject']['serialNumber'] ?? null;
+        if (!$serialRaw || !preg_match('/^IIN(\d{12})$/', $serialRaw, $matches)) {
+            throw new \RuntimeException('Некорректный или отсутствующий ИИН');
+        }
 
-    $subject = $x509['subject']['CN'] ?? null;
-    $serialRaw = $x509['subject']['serialNumber'] ?? null;
+        $iin = $matches[1];
 
-    if (!$serialRaw || !preg_match('/^IIN(\\d{12})$/', $serialRaw, $matches)) {
-        throw new \RuntimeException('Некорректный или отсутствующий ИИН в сертификате');
-    }
+        $fullName = mb_strtoupper(trim($model->surname . ' ' . $model->first_name), 'UTF-8');
+        $role = ($subject === $fullName) ? 'applicant' : 'parent';
 
-    $iin = $matches[1];
+        $duplicate = DocumentSignature::find()
+            ->where([
+                'subject_dn' => $subject,
+                'serial_number' => $x509['serialNumberHex'] ?? null
+            ])
+            ->exists();
 
-    // Определение роли
-    $fullName = mb_strtoupper(trim($model->surname . ' ' . $model->first_name), 'UTF-8');
-    $role = ($subject === $fullName) ? 'applicant' : 'parent';
+        if ($duplicate) {
+            throw new \RuntimeException("Подпись от '{$subject}' уже существует");
+        }
 
-    // Запрет дубликатов по роли
-    $duplicate = DocumentSignature::find()->where(['subject_dn' => $subject, 'serial_number' => $x509['serialNumberHex']]);
-    if ($duplicate->exists()) {
-        throw new \RuntimeException("Подпись от '{$subject}' уже существует");
-    }
+        $birthDate = $this->getBirthDateFromIIN($iin);
+        if (!$birthDate) {
+            throw new \RuntimeException('Не удалось определить дату рождения');
+        }
 
-    // Проверка возраста (информативная, не блокирующая)
-    $birthDate = $this->getBirthDateFromIIN($iin);
-    Yii::info($birthDate);
-    if (!$birthDate) {
-        throw new \RuntimeException('Не удалось определить дату рождения из ИИН');
-    }
+        $age = $birthDate->diff(new DateTime())->y;
 
-    $age = $birthDate->diff(new DateTime())->y;
+        $document = Document::find()->where(['form_id' => $model->id])->one();
+        if (!$document) {
+            throw new \RuntimeException("Документ не найден для формы ID {$model->id}");
+        }
 
-    $document = Document::find()->where(['form_id' => $model->id])->one();
-    if (!$document) {
-        throw new \RuntimeException("Документ не найден для формы ID {$model->id}");
-    }
+        $signature = new DocumentSignature();
+        $signature->document_id = $document->id;
+        $signature->pdf_path = $docWebPath;
+        $signature->signature_path = str_replace(Yii::getAlias('@webroot'), '', $sigPath);
+        $signature->subject_dn = $subject;
+        $signature->serial_number = $x509['serialNumberHex'] ?? '(нет серийного номера)';
+        $signature->valid_from = $x509['validFrom_time_t'] ?? time();
+        $signature->valid_until = $x509['validTo_time_t'] ?? time();
+        $signature->signed_at = time();
+        $signature->iin = $iin;
+        $signature->signer_role = $role;
 
-    $path = DocumentSignature::find()->select('pdf_path')->where(['document_id' => $document->id])->one();
+        if (!$signature->save()) {
+            Yii::error($signature->getErrors(), 'signature');
+            throw new \RuntimeException('Ошибка сохранения подписи');
+        }
 
-    // Сохраняем подпись
-    $signature = new DocumentSignature();
-    $signature->document_id = $document->id;
-    $signature->pdf_path = str_replace(Yii::getAlias('@webroot'), '', $doc);
-    $signature->signature_path = str_replace(Yii::getAlias('@webroot'), '', $sigPath);
-    $signature->subject_dn = $subject;
-    $signature->serial_number = $x509['serialNumberHex'] ?? '(нет серийного номера)';
-    $signature->valid_from = $x509['validFrom_time_t'] ?? time();
-    $signature->valid_until = $x509['validTo_time_t'] ?? time();
-    $signature->signed_at = time();
-    $signature->iin = $iin;
-    $signature->signer_role = $role;
-
-    if (!$signature->save()) {
-        Yii::error($signature->getErrors(), 'signature');
-        throw new \RuntimeException('Ошибка сохранения подписи: ' . print_r($signature->getErrors(), true));
-    }
-
-        if ($age < 18) {
-            $docData = file_get_contents(Yii::getAlias('@webroot' . $path));
+        if ($role === 'applicant' && $age < 18) {
+            $docData = file_get_contents($docFullPath);
             $base64 = base64_encode($docData);
             $xml = new \SimpleXMLElement("<?xml version='1.0' standalone='yes'?><data></data>");
             $xml->addChild('document', $base64);
@@ -177,12 +167,11 @@ class FormController extends Controller
             ]);
         }
 
-        Yii::info($age);
+        return $this->render('success', [
+            'model' => $model,
+        ]);
+    }
 
-    return $this->render('success', [
-        'model' => $model,
-    ]);
-}
 
     public function actionSecretary()
     {
