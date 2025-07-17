@@ -11,6 +11,7 @@ use Exception;
 use Yii;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
+use ZipArchive;
 
 class FormController extends Controller
 {
@@ -296,6 +297,37 @@ class FormController extends Controller
         if (!$signature->save()) {
             Yii::error($signature->getErrors(), 'signature');
             throw new \RuntimeException('Ошибка сохранения подписи: ' . print_r($signature->getErrors(), true));
+        }
+
+        $archiveDir = Yii::getAlias('@webroot/archives');
+        if (!is_dir($archiveDir)) {
+            mkdir($archiveDir, 0777, true);
+        }
+
+        $zipName = $userId . '_' . $model->surname . '_' . $model->first_name . '.zip';
+        $zipPath = $archiveDir . '/' . $zipName;
+
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE)) {
+            $files = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($pdfDir),
+                \RecursiveIteratorIterator::LEAVES_ONLY
+            );
+
+            foreach ($files as $file) {
+                if (!$file->isDir()) {
+                    $filePath = $file->getRealPath();
+                    $relativePath = substr($filePath, strlen($pdfDir) + 1);
+                    Yii::info('relativePath', $relativePath);
+                    Yii::info('filePath', $filePath);
+                    $zip->addFile($filePath, $relativePath);
+                }
+            }
+
+            $zip->close();
+            Yii::info("Архив создан: $zipPath");
+        } else {
+            Yii::error("Ошибка создания архива: $zipPath");
         }
 
         return $this->render('success', [

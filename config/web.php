@@ -1,5 +1,7 @@
 <?php
 
+use diecoding\aws\s3\Service;
+
 $params = require __DIR__ . '/params.php';
 $db = require __DIR__ . '/db.php';
 
@@ -39,6 +41,22 @@ $config = [
     ],
 
     'components' => [
+
+        's3' => [
+            'class' =>  Service::class,
+            'endpoint' => $_ENV['S3_ENDPOINT'],
+            'usePathStyleEndpoint' => true,
+            'credentials' => [
+                'key' => $_ENV['S3_AUTH_KEY'],
+                'secret' => $_ENV['S3_SECRET_KEY'],
+            ],
+            'region' => 'eu-north-1',
+            'defaultBucket' => $_ENV['S3_BUCKET'],
+            'defaultAcl' => 'public-read',
+            'httpOptions' => [
+                'verify' => false,
+            ]
+        ],
 
         'as access' => [
             'class' => 'mdm\admin\components\AccessControl',
