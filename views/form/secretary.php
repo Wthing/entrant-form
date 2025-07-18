@@ -1,6 +1,7 @@
 <?php
 /** @var yii\web\View $this */
 /** @var app\models\Form[] $forms */
+/** @var array $filesMap */
 
 use yii\helpers\Html;
 
@@ -56,7 +57,8 @@ $this->title = 'Заявки, ожидающие подписи секретар
                         </td>
 
                         <td class="text-center">
-                            <?= Html::a('Подписать', ['form/sign-secretary', 'id' => $form->id, 'doc' => $pdfMap[$form->id]], [
+                            <?php Yii::info($filesMap[$form->id], 'info') ?>
+                            <?= Html::a('Подписать', ['form/sign-secretary', 'id' => $form->id, 'doc' => $filesMap[$form->id]], [
                                 'class' => 'btn btn-outline-primary btn-sm',
                             ]) ?>
                         </td>
