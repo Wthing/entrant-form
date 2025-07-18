@@ -24,9 +24,10 @@ class FormController extends Controller
         $userId = Yii::$app->user->id;
         $document = new Document();
         $s3 = Yii::$app->s3;
-        $s3->commands()->delete('forms/1_Жамбеков_Арсен/signature_255_1752815490.sig')->execute();
-        $s3->commands()->delete('forms/1_Жамбеков_Арсен/signature_255_1752815517.sig')->execute();
-        $s3->commands()->delete('forms/1_Жамбеков_Арсен/Жамбеков_Арсен_255_1752815474.pdf')->execute();
+        $s3->commands()->delete('forms/1_Жамбеков_Арсен/form_257_1752816981.zip')->execute();
+        $s3->commands()->delete('forms/1_Жамбеков_Арсен/signature_257_1752816953.sig')->execute();
+        $s3->commands()->delete('forms/1_Жамбеков_Арсен/signature_257_1752816981.sig')->execute();
+        $s3->commands()->delete('forms/1_Жамбеков_Арсен/Жамбеков_Арсен_257_1752816944.pdf')->execute();
 
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
@@ -311,7 +312,6 @@ class FormController extends Controller
         }
 
         $pdfKey = $result['Contents'][0]['Key'];
-        $doc = basename($pdfKey);
 
         $sigFileName = 'signature_' . $model->id . '_' . time() . '.sig';
         $tmpSig = Yii::getAlias('@runtime/tmp/' . $sigFileName);
@@ -376,6 +376,8 @@ class FormController extends Controller
         mkdir($tmpFolder, 0777, true);
 
         $s3Files = $s3->commands()->list($relativeDir)->execute();
+        $s3Keys = [];
+
         foreach ($s3Files['Contents'] as $item) {
             $key = $item['Key'];
             $filename = basename($key);
@@ -383,6 +385,8 @@ class FormController extends Controller
 
             $stream = $s3->commands()->get($key)->execute()->get('Body');
             file_put_contents($localPath, $stream->getContents());
+
+            $s3Keys[] = $key; // собираем все ключи для удаления позже
         }
 
         $zipName = 'form_' . $model->id . '_' . time() . '.zip';
@@ -403,6 +407,11 @@ class FormController extends Controller
         $zipS3Key = $relativeDir . '/' . $zipName;
         $s3->commands()->upload($zipS3Key, $zipPath)->execute();
 
+        // 🗑️ Удаляем все старые файлы (кроме архива)
+        foreach ($s3Keys as $oldKey) {
+            $s3->commands()->delete($oldKey)->execute();
+        }
+
         // 🧹 Очистка временных файлов
         array_map('unlink', glob($tmpFolder . '/*'));
         rmdir($tmpFolder);
@@ -411,6 +420,7 @@ class FormController extends Controller
             'model' => $model,
         ]);
     }
+
 
 
 
