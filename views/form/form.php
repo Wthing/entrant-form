@@ -9,14 +9,6 @@ use yii\widgets\ActiveForm;
 
 ?>
 
-<?php
-$s3 = Yii::$app->s3;
-
-$prefix = 'forms/1_Жамбеков_Арсен';
-$result = $s3->commands()->list($prefix)->execute();
-$files = $result['Contents'] ?? [];
-Yii::info($files);
-?>
 
 <div class="form-form">
 

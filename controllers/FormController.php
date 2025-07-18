@@ -24,17 +24,11 @@ class FormController extends Controller
         $userId = Yii::$app->user->id;
         $document = new Document();
         $s3 = Yii::$app->s3;
-        $s3->commands()->delete('forms/1_Жамбеков_Арсен/form_257_1752816981.zip')->execute();
-        $s3->commands()->delete('forms/1_Жамбеков_Арсен/signature_257_1752816953.sig')->execute();
-        $s3->commands()->delete('forms/1_Жамбеков_Арсен/signature_257_1752816981.sig')->execute();
-        $s3->commands()->delete('forms/1_Жамбеков_Арсен/Жамбеков_Арсен_257_1752816944.pdf')->execute();
 
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            // 1. Генерация PDF и загрузка в S3
             $pdfService = new GeneratePdfService();
             $s3Path = $pdfService->generate($model->id); // ← возвращает путь в S3
-            Yii::info($s3Path, 'ssssssssss');
 
             $prefix = 'forms/' . $userId . '_' . $model->surname . '_' . $model->first_name . '/';
             $result = $s3->commands()->list($prefix)->execute();
