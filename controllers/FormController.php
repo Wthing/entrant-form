@@ -24,9 +24,9 @@ class FormController extends Controller
         $userId = Yii::$app->user->id;
         $document = new Document();
         $s3 = Yii::$app->s3;
-//        $s3->commands()->delete('forms/1_Жамбеков_Арсен/signature_254_1752815264.sig')->execute();
-//        $s3->commands()->delete('forms/1_Жамбеков_Арсен/signature_254_1752815339.sig')->execute();
-//        $s3->commands()->delete('forms/1_Жамбеков_Арсен/Жамбеков_Арсен_254_1752815242.pdf')->execute();
+        $s3->commands()->delete('forms/1_Жамбеков_Арсен/signature_255_1752815490.sig')->execute();
+        $s3->commands()->delete('forms/1_Жамбеков_Арсен/signature_255_1752815517.sig')->execute();
+        $s3->commands()->delete('forms/1_Жамбеков_Арсен/Жамбеков_Арсен_255_1752815474.pdf')->execute();
 
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
@@ -305,9 +305,7 @@ class FormController extends Controller
         $relativeDir = 'forms/' . $userId . '_' . $model->surname . '_' . $model->first_name;
         $filePrefix = $model->surname . '_' . $model->first_name . '_' . $model->id;
 
-        // Получаем список файлов по префиксу
         $result = $s3->commands()->list($relativeDir . '/' . $filePrefix)->execute();
-
         if (empty($result['Contents'])) {
             throw new NotFoundHttpException('PDF-файл не найден в S3');
         }
@@ -315,7 +313,6 @@ class FormController extends Controller
         $pdfKey = $result['Contents'][0]['Key'];
         $doc = basename($pdfKey);
 
-        // Сохраняем подпись локально во временную папку
         $sigFileName = 'signature_' . $model->id . '_' . time() . '.sig';
         $tmpSig = Yii::getAlias('@runtime/tmp/' . $sigFileName);
         if (!is_dir(dirname($tmpSig))) {
@@ -323,11 +320,9 @@ class FormController extends Controller
         }
         file_put_contents($tmpSig, $signData);
 
-        // Загружаем подпись в S3
         $sigS3Path = $relativeDir . '/' . $sigFileName;
         $s3->commands()->upload($sigS3Path, $tmpSig)->execute();
 
-        // Обработка подписи
         $certXml = simplexml_load_string($signData);
         if ($certXml === false) {
             throw new \RuntimeException('Ошибка разбора XML-подписи');
@@ -376,12 +371,47 @@ class FormController extends Controller
             throw new \RuntimeException('Ошибка сохранения подписи: ' . print_r($signature->getErrors(), true));
         }
 
-        // Архив в S3 больше не создаём — если нужно, делается через отдельную команду.
+        // === 📦 Архивация папки ===
+        $tmpFolder = Yii::getAlias('@runtime/tmp/' . uniqid('form_', true));
+        mkdir($tmpFolder, 0777, true);
+
+        $s3Files = $s3->commands()->list($relativeDir)->execute();
+        foreach ($s3Files['Contents'] as $item) {
+            $key = $item['Key'];
+            $filename = basename($key);
+            $localPath = $tmpFolder . '/' . $filename;
+
+            $stream = $s3->commands()->get($key)->execute()->get('Body');
+            file_put_contents($localPath, $stream->getContents());
+        }
+
+        $zipName = 'form_' . $model->id . '_' . time() . '.zip';
+        $zipPath = $tmpFolder . '/' . $zipName;
+
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE) !== true) {
+            throw new \RuntimeException('Не удалось создать ZIP архив');
+        }
+
+        foreach (glob($tmpFolder . '/*') as $file) {
+            if (is_file($file) && basename($file) !== $zipName) {
+                $zip->addFile($file, basename($file));
+            }
+        }
+        $zip->close();
+
+        $zipS3Key = $relativeDir . '/' . $zipName;
+        $s3->commands()->upload($zipS3Key, $zipPath)->execute();
+
+        // 🧹 Очистка временных файлов
+        array_map('unlink', glob($tmpFolder . '/*'));
+        rmdir($tmpFolder);
 
         return $this->render('success', [
             'model' => $model,
         ]);
     }
+
 
 
     public function actionSignSecretary($id, $doc)
