@@ -21,7 +21,9 @@ class m250708_113920_create_document_signature_table extends Migration
             'serial_number' => $this->string()->notNull(),
             'valid_from' => $this->integer()->notNull(),
             'valid_until' => $this->integer()->notNull(),
+            'iin' => $this->string()->notNull(),
             'signed_at' => $this->integer()->notNull(),
+            'signer_role' => $this->string()->notNull(),
         ]);
 
         $this->createIndex(
