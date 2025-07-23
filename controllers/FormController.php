@@ -27,14 +27,13 @@ class FormController extends Controller
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             $pdfService = new GeneratePdfService();
-            $s3Path = $pdfService->generate($model->id); // ← возвращает путь в S3
+            $s3Path = $pdfService->generate($model->id);
 
             $prefix = 'forms/' . $userId . '_' . $model->surname . '_' . $model->first_name . '/';
             $result = $s3->commands()->list($prefix)->execute();
             $files = $result['Contents'] ?? [];
             Yii::info($files);
 
-            // 2. Проверка и скачивание PDF с S3
             $tmpLocalPath = Yii::getAlias('@runtime/tmp/' . basename($s3Path));
             $s3->commands()
                 ->get($s3Path)
@@ -45,11 +44,9 @@ class FormController extends Controller
                 throw new NotFoundHttpException('Не удалось скачать PDF из S3.');
             }
 
-            // 3. Получаем содержимое и кодируем
             $doc = file_get_contents($tmpLocalPath);
             $base64 = base64_encode($doc);
 
-            // 4. XML обёртка
             $xml = new \SimpleXMLElement("<?xml version='1.0' standalone='yes'?><data></data>");
             $xml->addChild('document', $base64);
 
@@ -59,17 +56,14 @@ class FormController extends Controller
             $document->created_at = time();
             $document->save();
 
-            // 6. Удаляем локальный временный файл
             @unlink($tmpLocalPath);
 
-            // 7. Отображаем PDF
             return $this->render('pdf', [
                 'model' => $model,
                 'pdfData' => $xml->asXML(),
             ]);
         }
 
-        // Форма по умолчанию
         return $this->render('form', [
             'model' => $model,
         ]);
@@ -88,7 +82,6 @@ class FormController extends Controller
             throw new NotFoundHttpException("Форма не найдена");
         }
 
-        // Имя PDF файла в S3
         $pdfFileName = $model->surname . '_' . $model->first_name . '_' . $model->id;
         $prefix = 'forms/' . $userId . '_' . $model->surname . '_' . $model->first_name . '/';
         $result = $s3->commands()->list($prefix)->execute();
@@ -108,11 +101,9 @@ class FormController extends Controller
             throw new NotFoundHttpException('PDF файл не найден в S3.');
         }
 
-        // Загружаем PDF во временный путь
         $tmpPdf = Yii::getAlias('@runtime/tmp/' . basename($pdfS3Path));
         $s3->commands()->get($pdfS3Path)->saveAs($tmpPdf)->execute();
 
-        // Сохраняем XML-подпись во временный файл
         $relativeDir = 'forms/' . $userId . '_' . $model->surname . '_' . $model->first_name;
         $sigFileName = 'signature_' . $model->id . '_' . time() . '.sig';
         $s3Path = $relativeDir . '/' . $sigFileName;
@@ -123,7 +114,6 @@ class FormController extends Controller
 
         $s3->commands()->upload($s3Path, $tmpSigNew)->execute();
 
-        // Парсим XML-подпись
         $certXml = simplexml_load_string($signData);
         if ($certXml === false) {
             throw new \RuntimeException('Ошибка разбора XML-подписи');
@@ -192,7 +182,6 @@ class FormController extends Controller
             throw new \RuntimeException('Ошибка сохранения подписи');
         }
 
-        // Загружаем файл обратно и шлём в pdf-view, если applicant < 18
         if ($role === 'applicant' && $age < 18) {
             $docData = file_get_contents($tmpPdf);
             $base64 = base64_encode($docData);
