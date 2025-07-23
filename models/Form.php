@@ -51,14 +51,14 @@ class Form extends \yii\db\ActiveRecord
     {
         return [
             'id' => Yii::t('app', 'ID'),
-            'surname' => Yii::t('app', 'Surname'),
-            'first_name' => Yii::t('app', 'First Name'),
-            'patronymic' => Yii::t('app', 'Patronymic'),
-            'address' => Yii::t('app', 'Address'),
-            'education_type' => Yii::t('app', 'Education Type'),
-            'edu_program' => Yii::t('app', 'Edu Program'),
-            'edu_language' => Yii::t('app', 'Edu Language'),
-            'date_filled' => Yii::t('app', 'Date Filled'),
+            'surname' => Yii::t('app', 'Фамилия'),
+            'first_name' => Yii::t('app', 'Имя'),
+            'patronymic' => Yii::t('app', 'Отчество'),
+            'address' => Yii::t('app', 'Адрес'),
+            'education_type' => Yii::t('app', 'Тип поступления'),
+            'edu_program' => Yii::t('app', 'Образовательная программа'),
+            'edu_language' => Yii::t('app', 'Язык обучения'),
+            'date_filled' => Yii::t('app', 'Дата подписания'),
         ];
     }
 

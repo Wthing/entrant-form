@@ -114,7 +114,6 @@ $this->title = 'Заполнение заявления';
         ], ['prompt' => 'Выберите программу']) ?>
     </div>
 
-    <!-- Язык обучения -->
     <div class="col-md-6">
         <?= $form->field($model, 'edu_language')->dropDownList([
             'Казахский' => 'Казахский',
