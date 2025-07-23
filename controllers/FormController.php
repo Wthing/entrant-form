@@ -11,7 +11,6 @@ use Exception;
 use Yii;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
-use ZipArchive;
 
 class FormController extends Controller
 {
@@ -43,7 +42,7 @@ class FormController extends Controller
                 ->execute();
 
             if (!file_exists($tmpLocalPath)) {
-                throw new \yii\web\NotFoundHttpException('Не удалось скачать PDF из S3.');
+                throw new NotFoundHttpException('Не удалось скачать PDF из S3.');
             }
 
             // 3. Получаем содержимое и кодируем
@@ -251,7 +250,6 @@ class FormController extends Controller
                 $result = $s3->commands()->list($prefix)->execute();
                 $files = $result['Contents'] ?? [];
 
-                // фильтруем только нужные PDF
                 $pdfFile = null;
                 foreach ($files as $file) {
                     if (preg_match('/' . preg_quote($form->surname . '_' . $form->first_name . '_' . $form->id, '/') . '_.*\.pdf$/', $file['Key'])) {
@@ -261,9 +259,7 @@ class FormController extends Controller
                 }
 
                 if ($pdfFile) {
-                    Yii::info($pdfFile, 'pdf');
                     $filesMap[$form->id] = $pdfFile;
-                    // путь на клиент — через route или прямую ссылку (если публично доступен)
                     $pdfMap[$form->id] = $s3->getPresignedUrl($pdfFile, '+30 minutes'); // или: '/s3/proxy?key=' . urlencode($pdfFile)
                 } else {
                     $pdfMap[$form->id] = null;
@@ -274,8 +270,6 @@ class FormController extends Controller
                 $pdfMap[$form->id] = null;
             }
         }
-
-        Yii::info($pdfMap);
 
         return $this->render('secretary', [
             'forms' => $forms,
@@ -365,7 +359,6 @@ class FormController extends Controller
             throw new \RuntimeException('Ошибка сохранения подписи: ' . print_r($signature->getErrors(), true));
         }
 
-        // === 📦 Архивация папки ===
         $tmpFolder = Yii::getAlias('@runtime/tmp/' . uniqid('form_', true));
         mkdir($tmpFolder, 0777, true);
 
@@ -380,7 +373,7 @@ class FormController extends Controller
             $stream = $s3->commands()->get($key)->execute()->get('Body');
             file_put_contents($localPath, $stream->getContents());
 
-            $s3Keys[] = $key; // собираем все ключи для удаления позже
+            $s3Keys[] = $key;
         }
 
         $zipName = 'form_' . $model->id . '_' . time() . '.zip';
@@ -401,12 +394,10 @@ class FormController extends Controller
         $zipS3Key = $relativeDir . '/' . $zipName;
         $s3->commands()->upload($zipS3Key, $zipPath)->execute();
 
-        // 🗑️ Удаляем все старые файлы (кроме архива)
         foreach ($s3Keys as $oldKey) {
             $s3->commands()->delete($oldKey)->execute();
         }
 
-        // 🧹 Очистка временных файлов
         array_map('unlink', glob($tmpFolder . '/*'));
         rmdir($tmpFolder);
 
@@ -424,7 +415,7 @@ class FormController extends Controller
 
         $model = Form::findOne($id);
         if (!$model) {
-            throw new \yii\web\NotFoundHttpException("Форма не найдена");
+            throw new NotFoundHttpException("Форма не найдена");
         }
 
         try {
@@ -432,7 +423,7 @@ class FormController extends Controller
             $pdfContent = $stream->getContents(); // ✅ Правильное использование
         } catch (\Exception $e) {
             Yii::error("Ошибка при получении PDF из S3: " . $e->getMessage(), 's3');
-            throw new \yii\web\NotFoundHttpException("Файл PDF не найден на S3");
+            throw new NotFoundHttpException("Файл PDF не найден на S3");
         }
 
         $base64 = base64_encode($pdfContent);
