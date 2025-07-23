@@ -13,7 +13,8 @@ $config = [
         '@bower' => '@vendor/bower-asset',
         '@npm'   => '@vendor/npm-asset',
         '@mdm'   => '@vendor/mdmsoft',
-        '@mdm/admin' => '@mdm/yii2-admin'
+        '@mdm/admin' => '@mdm/yii2-admin',
+//        '@ip2L' => '@vendor/ip2location/ip2location-yii',
     ],
 
     'bootstrap' => [
@@ -133,5 +134,14 @@ if (YII_ENV_DEV) {
         'allowedIPs' => ['*'],
     ];
 }
+
+define('IP2LOCATION_DATABASE', Yii::getAlias('@ip2l/IP2LOCATION-LITE-DB3.BIN'));
+Yii::info(Yii::getAlias('@ip2l/IP2LOCATION.BIN'));
+use IP2LocationYii\IP2Location_Yii;
+
+Yii::$container->setSingleton(IP2Location_Yii::class, function () {
+    return new IP2Location_Yii();
+});
+
 
 return $config;
