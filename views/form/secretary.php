@@ -2,7 +2,9 @@
 /** @var yii\web\View $this */
 /** @var app\models\Form[] $forms */
 /** @var array $filesMap */
+/** @var array $signedMap */
 
+use yii\bootstrap5\ActiveForm;
 use yii\helpers\Html;
 
 $this->title = 'Заявки, ожидающие подписи секретаря';
@@ -11,6 +13,39 @@ $this->title = 'Заявки, ожидающие подписи секретар
 <head>
     <title><?= Html::encode($this->title) ?></title>
 </head>
+
+<div class="mb-4">
+    <?php $searchForm = ActiveForm::begin([
+        'method' => 'get',
+        'action' => ['form/secretary'],
+        'options' => ['class' => 'row g-2']
+    ]); ?>
+
+    <div class="col-md-3">
+        <?= Html::input('text', 'search', Yii::$app->request->get('search'), [
+            'class' => 'form-control',
+            'placeholder' => 'Поиск по ФИО или ID'
+        ]) ?>
+    </div>
+
+    <div class="col-md-3">
+        <?= Html::dropDownList('status', Yii::$app->request->get('status'), [
+            '' => 'Все',
+            'signed' => 'Подписано секретарём',
+            'unsigned' => 'Без подписи',
+        ], ['class' => 'form-select']) ?>
+    </div>
+
+    <div class="col-md-2">
+        <?= Html::submitButton('Поиск', ['class' => 'btn btn-primary w-100']) ?>
+    </div>
+
+    <div class="col-md-2">
+        <?= Html::a('Сброс', ['form/secretary'], ['class' => 'btn btn-outline-secondary w-100']) ?>
+    </div>
+
+    <?php ActiveForm::end(); ?>
+</div>
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -30,6 +65,7 @@ $this->title = 'Заявки, ожидающие подписи секретар
                     <th>ФИО абитуриента</th>
                     <th>Подписант</th>
                     <th>Заявление</th>
+                    <th>Статус</th>
                     <th>Действие</th>
                 </tr>
                 </thead>
@@ -57,11 +93,23 @@ $this->title = 'Заявки, ожидающие подписи секретар
                         </td>
 
                         <td class="text-center">
-                            <?php Yii::info($filesMap[$form->id], 'info') ?>
-                            <?= Html::a('Подписать', ['form/sign-secretary', 'id' => $form->id, 'doc' => $filesMap[$form->id]], [
-                                'class' => 'btn btn-outline-primary btn-sm',
-                            ]) ?>
+                            <?php if ($signedMap[$form->id]): ?>
+                                <span class="badge bg-success">✔ Подписано</span>
+                            <?php else: ?>
+                                <span class="badge bg-warning text-dark">✖ Без подписи</span>
+                            <?php endif; ?>
                         </td>
+
+                        <td class="text-center">
+                            <?php if (!$signedMap[$form->id] && !empty($filesMap[$form->id])): ?>
+                                <?= Html::a('Подписать', ['form/sign-secretary', 'id' => $form->id, 'doc' => $filesMap[$form->id]], [
+                                    'class' => 'btn btn-outline-primary btn-sm',
+                                ]) ?>
+                            <?php else: ?>
+                                —
+                            <?php endif; ?>
+                        </td>
+
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

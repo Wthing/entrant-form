@@ -209,54 +209,87 @@ class FormController extends Controller
     public function actionSecretary()
     {
         $s3 = Yii::$app->s3;
+        $search = Yii::$app->request->get('search');
+        $status = Yii::$app->request->get('status');
 
-        $forms = Form::find()
-            ->joinWith('documents.signatures s1')
-            ->where(['s1.signer_role' => ['applicant', 'parent']])
-            ->andWhere(['not exists',
+        $query = Form::find()
+            ->alias('f')
+            ->joinWith(['documents d', 'documents.signatures s'])
+            ->groupBy('f.id');
+
+        // Поиск по ФИО или ID
+        if ($search) {
+            $query->andWhere([
+                'or',
+                ['like', 'f.surname', $search],
+                ['like', 'f.first_name', $search],
+                ['like', 'f.patronymic', $search],
+                ['like', 's.iin', $search],
+                ['f.id' => $search],
+            ]);
+        }
+
+        // Фильтрация по статусу подписи секретаря
+        if ($status === 'signed') {
+            $query->andWhere(['exists',
                 DocumentSignature::find()
-                    ->alias('s2')
-                    ->join('INNER JOIN', 'document d', 'd.id = s2.document_id')
-                    ->where('d.form_id = form.id')
-                    ->andWhere(['s2.signer_role' => 'secretary'])
-            ])
-            ->groupBy('form.id')
-            ->all();
+                    ->alias('ds')
+                    ->join('INNER JOIN', 'document d2', 'd2.id = ds.document_id')
+                    ->where('d2.form_id = f.id')
+                    ->andWhere(['ds.signer_role' => 'secretary'])
+            ]);
+        } elseif ($status === 'unsigned') {
+            $query->andWhere(['not exists',
+                DocumentSignature::find()
+                    ->alias('ds')
+                    ->join('INNER JOIN', 'document d2', 'd2.id = ds.document_id')
+                    ->where('d2.form_id = f.id')
+                    ->andWhere(['ds.signer_role' => 'secretary'])
+            ]);
+        }
 
+        $forms = $query->all();
         $pdfMap = [];
         $filesMap = [];
+        $signedMap = [];
 
         foreach ($forms as $form) {
             $doc = $form->documents[0] ?? null;
-            if (!$doc) {
-                $pdfMap[$form->id] = null;
-                continue;
-            }
+            $signed = false;
 
-            $userId = $doc->user_id;
-            $prefix = 'forms/' . $userId . '_' . $form->surname . '_' . $form->first_name . '/';
-            try {
-                $result = $s3->commands()->list($prefix)->execute();
-                $files = $result['Contents'] ?? [];
-
-                $pdfFile = null;
-                foreach ($files as $file) {
-                    if (preg_match('/' . preg_quote($form->surname . '_' . $form->first_name . '_' . $form->id, '/') . '_.*\.pdf$/', $file['Key'])) {
-                        $pdfFile = $file['Key'];
+            if ($doc) {
+                foreach ($doc->signatures as $sig) {
+                    if ($sig->signer_role === 'secretary') {
+                        $signed = true;
                         break;
                     }
                 }
+            }
 
-                if ($pdfFile) {
-                    $filesMap[$form->id] = $pdfFile;
-                    $pdfMap[$form->id] = $s3->getPresignedUrl($pdfFile, '+30 minutes'); // или: '/s3/proxy?key=' . urlencode($pdfFile)
-                } else {
-                    $pdfMap[$form->id] = null;
+            $signedMap[$form->id] = $signed;
+
+            // Загрузка PDF
+            $pdfMap[$form->id] = null;
+            $filesMap[$form->id] = null;
+
+            if ($doc) {
+                $userId = $doc->user_id;
+                $prefix = 'forms/' . $userId . '_' . $form->surname . '_' . $form->first_name . '/';
+
+                try {
+                    $result = $s3->commands()->list($prefix)->execute();
+                    $files = $result['Contents'] ?? [];
+
+                    foreach ($files as $file) {
+                        if (preg_match('/' . preg_quote($form->surname . '_' . $form->first_name . '_' . $form->id, '/') . '_.*\.pdf$/', $file['Key'])) {
+                            $filesMap[$form->id] = $file['Key'];
+                            $pdfMap[$form->id] = $s3->getPresignedUrl($file['Key'], '+30 minutes');
+                            break;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Yii::error("Ошибка S3: " . $e->getMessage(), __METHOD__);
                 }
-
-            } catch (\Exception $e) {
-                Yii::error("Ошибка получения списка файлов из S3: " . $e->getMessage(), __METHOD__);
-                $pdfMap[$form->id] = null;
             }
         }
 
@@ -264,6 +297,7 @@ class FormController extends Controller
             'forms' => $forms,
             'pdfMap' => $pdfMap,
             'filesMap' => $filesMap,
+            'signedMap' => $signedMap,
         ]);
     }
 
@@ -424,6 +458,8 @@ class FormController extends Controller
             'pdfData' => $xml->asXML()
         ]);
     }
+
+
 
 
 
