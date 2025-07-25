@@ -24,6 +24,12 @@ class FormController extends Controller
         $document = new Document();
         $s3 = Yii::$app->s3;
 
+        $prefix = 'forms/';
+        $result = $s3->commands()->list($prefix)->execute();
+        $files = $result['Contents'] ?? [];
+        Yii::info($files);
+//        $s3->commands()->delete('forms/1_Жамбеков_Арсен/form_3_1753417022.zip')->execute();
+
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             $pdfService = new GeneratePdfService();
@@ -302,9 +308,9 @@ class FormController extends Controller
     }
 
 
-    public function actionAddSecretary()
+    public function actionAddSecretary($userId)
     {
-        $userId = Yii::$app->user->id;
+        $currUserId = Yii::$app->user->id;
         $signData = Yii::$app->request->post('signData');
         $formId = Yii::$app->request->post('formId');
         $s3 = Yii::$app->s3;
@@ -437,6 +443,7 @@ class FormController extends Controller
         $s3 = Yii::$app->s3;
 
         $model = Form::findOne($id);
+        $userId = Document::find()->select('user_id')->where(['form_id' => $id])->column();
         if (!$model) {
             throw new NotFoundHttpException("Форма не найдена");
         }
@@ -455,7 +462,8 @@ class FormController extends Controller
 
         return $this->render('sign-secretary', [
             'model' => $model,
-            'pdfData' => $xml->asXML()
+            'pdfData' => $xml->asXML(),
+            'userId' => $userId,
         ]);
     }
 
