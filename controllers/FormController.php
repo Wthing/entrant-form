@@ -443,7 +443,7 @@ class FormController extends Controller
         $s3 = Yii::$app->s3;
 
         $model = Form::findOne($id);
-        $userId = Document::find()->select('user_id')->where(['form_id' => $id])->column();
+        $userId = Document::find()->select('user_id')->where(['form_id' => $id])->scalar();
         if (!$model) {
             throw new NotFoundHttpException("Форма не найдена");
         }

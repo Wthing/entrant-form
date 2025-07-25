@@ -124,7 +124,7 @@ $this->title = 'Информация о заявлении';
                     formData.append("_csrf", yii.getCsrfToken());
 
                     const request = new XMLHttpRequest();
-                    request.open("POST", "/form/add-secretary?userId=<?= $userId ?>");
+                    request.open("POST", "/form/add-secretary?userId=<?= Html::encode($userId) ?>");
 
                     request.onload = () => {
                         if (request.status === 200) {
