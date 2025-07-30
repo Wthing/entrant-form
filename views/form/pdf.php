@@ -121,7 +121,14 @@ $types = [
 
             webSocket.onmessage = ({ data }) => {
                 const response = JSON.parse(data);
-                if (response?.status === true && response.body?.result) {
+
+
+                var responseStatus = response['status'];
+                var responseBody = response['body'];
+                console.log(response.body.result);
+
+
+                if (responseStatus === true && responseBody.hasOwnProperty('result')) {
                     const signed = response.body.result;
 
                     const formData = new FormData();
@@ -136,7 +143,7 @@ $types = [
                         if (request.status === 200) {
                             document.open();
                             document.write(request.responseText);
-                            document.close(); // 👈 это безопасно рендерит success.php
+                            document.close();
                         } else {
                             alert("Ошибка при сохранении подписи: " + request.statusText);
                         }

@@ -19,7 +19,6 @@ class GeneratePdfService
      */
     public function generate(int $formId): string
     {
-        $userId = Yii::$app->user->id;
         $model = Form::findOne($formId);
         $s3 = Yii::$app->s3;
 
@@ -41,7 +40,7 @@ class GeneratePdfService
         ]);
         $pdf->WriteHTML($html);
 
-        $relativeDir = 'forms/' . $userId . '_' . $model->surname . '_' . $model->first_name;
+        $relativeDir = 'forms/' . $model->id . '_' . $model->surname . '_' . $model->first_name;
         $fileName = $model->surname . '_' . $model->first_name . '_' . $model->id . '_' . time() . '.pdf';
         $localPath = Yii::getAlias('@runtime/tmp/' . $fileName);
         $s3Path = $relativeDir . '/' . $fileName;

@@ -21,28 +21,31 @@ class FormController extends Controller
     public function actionCreate()
     {
 
-        $userId = Yii::$app->user->id;
+//        $userId = Yii::$app->user->id;
         $document = new Document();
         $s3 = Yii::$app->s3;
 
         $prefix = 'forms/';
-        $localPath = Yii::getAlias('@runtime/tmp/' . basename('forms/1_Жамбеков_Арсен/form_6_1753704893.zip'));
+//        $localPath = Yii::getAlias('@runtime/tmp/' . basename('forms/13_Жамбеков_Арсен/form_13_1753870402.zip'));
         $result = $s3->commands()->list($prefix)->execute();
-        $get = $s3->commands()
-            ->get('forms/1_Жамбеков_Арсен/form_6_1753704893.zip')
-            ->saveAs($localPath)
-            ->execute();
+//        $s3->commands()
+//            ->get('forms/13_Жамбеков_Арсен/form_13_1753870402.zip')
+//            ->saveAs($localPath)
+//            ->execute();
         $files = $result['Contents'] ?? [];
         Yii::info($files);
-        $s3->commands()->delete('forms/1_Жамбеков_Арсен/form_3_1753704171.zip')->execute();
-//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_2_1753704014.pdf')->execute();
+        $s3->commands()->delete('forms/14_Жамбеков_Арсен/form_14_1753873034.zip')->execute();
+//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_11_1753870023.pdf')->execute();
+//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_12_1753870053.pdf')->execute();
+//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_9_1753869933.pdf')->execute();
+//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_10_1753869980.pdf')->execute();
 
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             $pdfService = new GeneratePdfService();
             $s3Path = $pdfService->generate($model->id);
 
-            $prefix = 'forms/' . $userId . '_' . $model->surname . '_' . $model->first_name . '/';
+            $prefix = 'forms/' . $model->id . '_' . $model->surname . '_' . $model->first_name . '/';
             $result = $s3->commands()->list($prefix)->execute();
             $files = $result['Contents'] ?? [];
             Yii::info($files);
@@ -64,7 +67,7 @@ class FormController extends Controller
             $xml->addChild('document', $base64);
 
             // 5. Сохраняем Document
-            $document->user_id = $userId;
+//            $document->user_id = $userId;
             $document->form_id = $model->id;
             $document->created_at = time();
             $document->save();
@@ -85,7 +88,7 @@ class FormController extends Controller
 
     public function actionAdd()
     {
-        $userId = Yii::$app->user->id;
+//        $userId = Yii::$app->user->id;
         $signData = Yii::$app->request->post('signData');
         $formId = Yii::$app->request->post('formId');
         $s3 = Yii::$app->s3;
@@ -96,7 +99,7 @@ class FormController extends Controller
         }
 
         $pdfFileName = $model->surname . '_' . $model->first_name . '_' . $model->id;
-        $prefix = 'forms/' . $userId . '_' . $model->surname . '_' . $model->first_name . '/';
+        $prefix = 'forms/' . $model->id . '_' . $model->surname . '_' . $model->first_name . '/';
         $result = $s3->commands()->list($prefix)->execute();
         $files = $result['Contents'] ?? [];
         Yii::info($files);
@@ -117,7 +120,7 @@ class FormController extends Controller
         $tmpPdf = Yii::getAlias('@runtime/tmp/' . basename($pdfS3Path));
         $s3->commands()->get($pdfS3Path)->saveAs($tmpPdf)->execute();
 
-        $relativeDir = 'forms/' . $userId . '_' . $model->surname . '_' . $model->first_name;
+        $relativeDir = 'forms/' . $model->id . '_' . $model->surname . '_' . $model->first_name;
         $sigFileName = 'signature_' . $model->id . '_' . time() . '.sig';
         $s3Path = $relativeDir . '/' . $sigFileName;
         $tmpSig = Yii::getAlias('@runtime/tmp/' . $sigFileName);
@@ -230,7 +233,6 @@ class FormController extends Controller
             ->joinWith(['documents d', 'documents.signatures s'])
             ->groupBy('f.id');
 
-        // Поиск по ФИО или ID
         if ($search) {
             $query->andWhere([
                 'or',
@@ -286,8 +288,8 @@ class FormController extends Controller
             $filesMap[$form->id] = null;
 
             if ($doc) {
-                $userId = $doc->user_id;
-                $prefix = 'forms/' . $userId . '_' . $form->surname . '_' . $form->first_name . '/';
+//                $userId = $doc->user_id;
+                $prefix = 'forms/' . $form->id . '_' . $form->surname . '_' . $form->first_name . '/';
 
                 try {
                     $result = $s3->commands()->list($prefix)->execute();
@@ -315,9 +317,8 @@ class FormController extends Controller
     }
 
 
-    public function actionAddSecretary($userId)
+    public function actionAddSecretary()
     {
-        $currUserId = Yii::$app->user->id;
         $signData = Yii::$app->request->post('signData');
         $formId = Yii::$app->request->post('formId');
         $s3 = Yii::$app->s3;
@@ -327,7 +328,7 @@ class FormController extends Controller
             throw new NotFoundHttpException("Форма не найдена");
         }
 
-        $relativeDir = 'forms/' . $userId . '_' . $model->surname . '_' . $model->first_name;
+        $relativeDir = 'forms/' . $model->id . '_' . $model->surname . '_' . $model->first_name;
         $filePrefix = $model->surname . '_' . $model->first_name . '_' . $model->id;
 
         $result = $s3->commands()->list($relativeDir . '/' . $filePrefix)->execute();
@@ -450,7 +451,7 @@ class FormController extends Controller
         $s3 = Yii::$app->s3;
 
         $model = Form::findOne($id);
-        $userId = Document::find()->select('user_id')->where(['form_id' => $id])->scalar();
+//        $userId = Document::find()->select('user_id')->where(['form_id' => $id])->scalar();
         if (!$model) {
             throw new NotFoundHttpException("Форма не найдена");
         }
@@ -470,7 +471,6 @@ class FormController extends Controller
         return $this->render('sign-secretary', [
             'model' => $model,
             'pdfData' => $xml->asXML(),
-            'userId' => $userId,
         ]);
     }
 

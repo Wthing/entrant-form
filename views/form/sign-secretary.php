@@ -6,7 +6,6 @@ use yii\helpers\Html;
 /** @var \app\models\Form $model */
 /** @var $pdfData */
 /** @var yii\web\View $this */
-/** @var int $userId */
 
 $this->title = 'Информация о заявлении';
 ?>
@@ -124,7 +123,7 @@ $this->title = 'Информация о заявлении';
                     formData.append("_csrf", yii.getCsrfToken());
 
                     const request = new XMLHttpRequest();
-                    request.open("POST", "/form/add-secretary?userId=<?= Html::encode($userId) ?>");
+                    request.open("POST", "/form/add-secretary");
 
                     request.onload = () => {
                         if (request.status === 200) {
