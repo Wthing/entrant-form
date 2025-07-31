@@ -115,17 +115,28 @@ $this->title = 'Заполнение заявления';
     </div>
 
     <div class="col-md-6">
-        <?= $form->field($model, 'edu_language')->dropDownList([
+        <?= $form->field($model, 'edu_language')->label('Язык обучения')->radioList([
             'Казахский' => 'Казахский',
             'Русский' => 'Русский',
             'Английский' => 'Английский',
-        ], ['prompt' => 'Выберите язык обучения']) ?>
+        ], [
+            'item' => function ($index, $label, $name, $checked, $value) {
+                $id = 'btnradio' . $index;
+                $checkedAttr = $checked ? 'checked' : '';
+                return <<<HTML
+<div class="form-check form-check-inline">
+    <input type="radio" class="btn-check" name="{$name}" id="{$id}" value="{$value}" autocomplete="off" {$checkedAttr}>
+    <label class="btn btn-outline-primary" for="{$id}">{$label}</label>
+</div>
+HTML;
+            },
+            'class' => 'btn-group d-flex justify-content-between', // Контейнер для стилей
+            'data-toggle' => 'buttons',
+        ]) ?>
     </div>
 
-    <!-- Дата заполнения (скрытая) -->
     <?= $form->field($model, 'date_filled')->hiddenInput(['value' => time()])->label(false) ?>
 
-    <!-- Кнопка -->
     <div class="col-12">
         <?= Html::submitButton('Сохранить и сформировать PDF', ['class' => 'btn btn-success w-100 py-2']) ?>
     </div>

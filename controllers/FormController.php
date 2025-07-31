@@ -9,6 +9,7 @@ use app\services\GeneratePdfService;
 use DateTime;
 use Exception;
 use Yii;
+use yii\filters\AccessControl;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 
@@ -18,6 +19,22 @@ class FormController extends Controller
     public const PARENT = 'parent';
     public const SECRETARY = 'secretary';
 
+    public function behaviors()
+    {
+        return [
+            'access' => [
+                'class' => AccessControl::class,
+                'only' => ['secretary', 'add-secretary', 'sign-secretary'], // Названия действий, а НЕ маршруты
+                'rules' => [
+                    [
+                        'allow' => true,
+                        'roles' => ['admin'], // Только авторизованные пользователи
+                    ],
+                ],
+            ],
+        ];
+    }
+
     public function actionCreate()
     {
 
@@ -26,19 +43,27 @@ class FormController extends Controller
         $s3 = Yii::$app->s3;
 
         $prefix = 'forms/';
-//        $localPath = Yii::getAlias('@runtime/tmp/' . basename('forms/13_Жамбеков_Арсен/form_13_1753870402.zip'));
+        $localPath = Yii::getAlias('@runtime/tmp/' . basename('forms/29_Жамбеков_Арсен/form_29_1753944052.zip'));
         $result = $s3->commands()->list($prefix)->execute();
-//        $s3->commands()
-//            ->get('forms/13_Жамбеков_Арсен/form_13_1753870402.zip')
-//            ->saveAs($localPath)
-//            ->execute();
+        $s3->commands()
+            ->get('forms/29_Жамбеков_Арсен/form_29_1753944052.zip')
+            ->saveAs($localPath)
+            ->execute();
         $files = $result['Contents'] ?? [];
         Yii::info($files);
-        $s3->commands()->delete('forms/14_Жамбеков_Арсен/form_14_1753873034.zip')->execute();
-//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_11_1753870023.pdf')->execute();
-//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_12_1753870053.pdf')->execute();
-//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_9_1753869933.pdf')->execute();
-//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_10_1753869980.pdf')->execute();
+//        $s3->commands()->delete('forms/15_Жамбеков_Арсен/form_15_1753875750.zip')->execute();
+//        $s3->commands()->delete('forms/16_f_f/f_f_16_1753875855.pdf')->execute();
+//        $s3->commands()->delete('forms/17_f_f/f_f_17_1753876162.pdf')->execute();
+//        $s3->commands()->delete('forms/18_f_f/f_f_18_1753876657.pdf')->execute();
+//        $s3->commands()->delete('forms/19_f_f/f_f_19_1753876850.pdf')->execute();
+//        $s3->commands()->delete('forms/20_f_f/f_f_20_1753876854.pdf')->execute();
+//        $s3->commands()->delete('forms/21_f_f/f_f_21_1753876882.pdf')->execute();
+//        $s3->commands()->delete('forms/22_f_f/f_f_22_1753876952.pdf')->execute();
+//        $s3->commands()->delete('forms/23_f_f/f_f_23_1753876967.pdf')->execute();
+//        $s3->commands()->delete('forms/24_f_f/f_f_24_1753877068.pdf')->execute();
+//        $s3->commands()->delete('forms/25_f_f/f_f_25_1753877091.pdf')->execute();
+//        $s3->commands()->delete('forms/26_f_f/f_f_26_1753878392.pdf')->execute();
+//        $s3->commands()->delete('forms/28_aaaaaaaaaa_aaaaaaaaaaaaaaa/aaaaaaaaaa_aaaaaaaaaaaaaaa_28_1753943104.pdf')->execute();
 
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
@@ -84,7 +109,6 @@ class FormController extends Controller
             'model' => $model,
         ]);
     }
-
 
     public function actionAdd()
     {
@@ -221,7 +245,6 @@ class FormController extends Controller
         ]);
     }
 
-
     public function actionSecretary()
     {
         $s3 = Yii::$app->s3;
@@ -315,7 +338,6 @@ class FormController extends Controller
             'signedMap' => $signedMap,
         ]);
     }
-
 
     public function actionAddSecretary()
     {
@@ -443,9 +465,6 @@ class FormController extends Controller
         ]);
     }
 
-
-
-
     public function actionSignSecretary($id, $doc)
     {
         $s3 = Yii::$app->s3;
@@ -473,10 +492,6 @@ class FormController extends Controller
             'pdfData' => $xml->asXML(),
         ]);
     }
-
-
-
-
 
     function getBirthDateFromIIN(string $iin): ?DateTime {
         if (!preg_match('/^(\d{2})(\d{2})(\d{2})(\d)/', $iin, $m)) {

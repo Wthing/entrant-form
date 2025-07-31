@@ -90,8 +90,6 @@ class GeneratePdfService
 
         if ($err > 0){
             file_put_contents($fileErr,KalkanCrypt_GetLastErrorString());
-            var_dump( KalkanCrypt_GetLastErrorString()."\n");
-            var_dump( "<br>Error:\tKalkanCrypt_SignData  = ".$err."\n");
             die;
             $err_sign = 1;
         }
