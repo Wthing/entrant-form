@@ -77,11 +77,6 @@ class GeneratePdfService
         $alias = "";
         $storage = $KCST_PKCS12;
         $err = KalkanCrypt_LoadKeyStore($storage, $password,$container,$alias);
-        if ($err > 0){
-            echo "Error:\tKalkanCrypt_LoadKeyStore".$err."\n";
-        }else{
-            echo "Ok1\tKalkanCrypt_LoadKeyStore\n";
-        }
 
         $outSign = "";
         $inData = $pdf;

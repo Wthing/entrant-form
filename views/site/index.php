@@ -6,12 +6,16 @@ use yii\helpers\Html;
 
 $this->title = 'Подача заявления';
 ?>
-<div class="site-index">
+<div class="container mt-5">
 
-    <div class="jumbotron text-center mt-5 py-5 rounded">
-        <h1 class="display-5 mb-3">Добро пожаловать!</h1>
-        <p class="lead mb-4">Это платформа для онлайн-заполнения заявления в университет.</p>
+    <div class="text-center p-5" style="max-width: 700px; margin: auto;">
+        <h1 class="display-5 mb-4 text-primary">Добро пожаловать!</h1>
+        <p class="lead mb-4 text-muted">Онлайн-платформа подачи заявления в университет.<br> Простой и быстрый способ заполнить все необходимые данные.</p>
 
-        <?= Html::a('Начать заполнение заявления', ['form/create'], ['class' => 'btn btn-success btn-lg']) ?>
+        <?= Html::a('Начать оформление', ['form/create'], [
+            'class' => 'btn btn-primary btn-lg px-4 py-2 shadow-sm',
+            'style' => 'border-radius: 30px;'
+        ]) ?>
     </div>
+
 </div>

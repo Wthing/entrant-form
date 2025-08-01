@@ -43,27 +43,32 @@ class FormController extends Controller
         $s3 = Yii::$app->s3;
 
         $prefix = 'forms/';
-//        $localPath = Yii::getAlias('@runtime/tmp/' . basename('forms/29_Жамбеков_Арсен/form_29_1753944052.zip'));
+//        $localPath = Yii::getAlias('@runtime/tmp/' . basename('forms/48_Жамбеков_Арсен/form_48_1754033800.zip'));
         $result = $s3->commands()->list($prefix)->execute();
 //        $s3->commands()
-//            ->get('forms/29_Жамбеков_Арсен/form_29_1753944052.zip')
+//            ->get('forms/48_Жамбеков_Арсен/form_48_1754033800.zip')
 //            ->saveAs($localPath)
 //            ->execute();
         $files = $result['Contents'] ?? [];
         Yii::info($files);
-//        $s3->commands()->delete('forms/29_Жамбеков_Арсен/form_29_1753944052.zip')->execute();
-//        $s3->commands()->delete('forms/16_f_f/f_f_16_1753875855.pdf')->execute();
-//        $s3->commands()->delete('forms/17_f_f/f_f_17_1753876162.pdf')->execute();
-//        $s3->commands()->delete('forms/18_f_f/f_f_18_1753876657.pdf')->execute();
-//        $s3->commands()->delete('forms/19_f_f/f_f_19_1753876850.pdf')->execute();
-//        $s3->commands()->delete('forms/20_f_f/f_f_20_1753876854.pdf')->execute();
-//        $s3->commands()->delete('forms/21_f_f/f_f_21_1753876882.pdf')->execute();
-//        $s3->commands()->delete('forms/22_f_f/f_f_22_1753876952.pdf')->execute();
-//        $s3->commands()->delete('forms/23_f_f/f_f_23_1753876967.pdf')->execute();
-//        $s3->commands()->delete('forms/24_f_f/f_f_24_1753877068.pdf')->execute();
-//        $s3->commands()->delete('forms/25_f_f/f_f_25_1753877091.pdf')->execute();
-//        $s3->commands()->delete('forms/26_f_f/f_f_26_1753878392.pdf')->execute();
-//        $s3->commands()->delete('forms/28_aaaaaaaaaa_aaaaaaaaaaaaaaa/aaaaaaaaaa_aaaaaaaaaaaaaaa_28_1753943104.pdf')->execute();
+//        $s3->commands()->delete('forms/31_Жамбеков_Арсен/Жамбеков_Арсен_31_1754027849.pdf')->execute();
+//        $s3->commands()->delete('forms/32_Жамбеков_Арсен/Жамбеков_Арсен_32_1754028194.pdf')->execute();
+//        $s3->commands()->delete('forms/33_Жамбеков_Арсен/Жамбеков_Арсен_33_1754028202.pdf')->execute();
+//        $s3->commands()->delete('forms/34_Жамбеков_Арсен/Жамбеков_Арсен_34_1754028233.pdf')->execute();
+//        $s3->commands()->delete('forms/35_Жамбеков_Арсен/Жамбеков_Арсен_35_1754028742.pdf')->execute();
+//        $s3->commands()->delete('forms/36_Жамбеков_Арсен/Жамбеков_Арсен_36_1754028795.pdf')->execute();
+//        $s3->commands()->delete('forms/37_Жамбеков_Арсен/Жамбеков_Арсен_37_1754028826.pdf')->execute();
+//        $s3->commands()->delete('forms/38_Жамбеков_Арсен/Жамбеков_Арсен_38_1754028868.pdf')->execute();
+//        $s3->commands()->delete('forms/39_Жамбеков_Арсен/Жамбеков_Арсен_39_1754029348.pdf')->execute();
+//        $s3->commands()->delete('forms/40_Жамбеков_Арсен/Жамбеков_Арсен_40_1754029528.pdf')->execute();
+//        $s3->commands()->delete('forms/41_Жамбеков_Арсен/Жамбеков_Арсен_41_1754032857.pdf')->execute();
+//        $s3->commands()->delete('forms/42_Жамбеков_Арсен/Жамбеков_Арсен_42_1754032964.pdf')->execute();
+//        $s3->commands()->delete('forms/43_Жамбеков_Арсен/Жамбеков_Арсен_43_1754033165.pdf')->execute();
+//        $s3->commands()->delete('forms/44_Жамбеков_Арсен/Жамбеков_Арсен_44_1754033299.pdf')->execute();
+//        $s3->commands()->delete('forms/45_Жамбеков_Арсен/Жамбеков_Арсен_45_1754033371.pdf')->execute();
+//        $s3->commands()->delete('forms/46_Жамбеков_Арсен/Жамбеков_Арсен_46_1754033467.pdf')->execute();
+//        $s3->commands()->delete('forms/47_Жамбеков_Арсен/Жамбеков_Арсен_47_1754033583.pdf')->execute();
+//        $s3->commands()->delete('forms/48_Жамбеков_Арсен/form_48_1754033800.zip')->execute();
 
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
