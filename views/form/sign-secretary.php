@@ -114,7 +114,11 @@ $this->title = 'Информация о заявлении';
 
             webSocket.onmessage = ({ data }) => {
                 const response = JSON.parse(data);
-                if (response?.status === true && response.body?.result) {
+
+                var responseStatus = response['status'];
+                var responseBody = response['body'];
+
+                if (responseStatus === true && responseBody.hasOwnProperty('result')) {
                     const signed = response.body.result;
 
                     const formData = new FormData();

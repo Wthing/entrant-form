@@ -122,11 +122,8 @@ $types = [
             webSocket.onmessage = ({ data }) => {
                 const response = JSON.parse(data);
 
-
                 var responseStatus = response['status'];
                 var responseBody = response['body'];
-                console.log(response.body.result);
-
 
                 if (responseStatus === true && responseBody.hasOwnProperty('result')) {
                     const signed = response.body.result;

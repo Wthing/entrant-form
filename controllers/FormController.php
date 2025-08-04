@@ -43,15 +43,15 @@ class FormController extends Controller
         $s3 = Yii::$app->s3;
 
         $prefix = 'forms/';
-//        $localPath = Yii::getAlias('@runtime/tmp/' . basename('forms/48_Жамбеков_Арсен/form_48_1754033800.zip'));
+//        $localPath = Yii::getAlias('@runtime/tmp/' . basename('forms/50_Жамбеков_Арсен/form_50_1754281763.zip'));
         $result = $s3->commands()->list($prefix)->execute();
 //        $s3->commands()
-//            ->get('forms/48_Жамбеков_Арсен/form_48_1754033800.zip')
+//            ->get('forms/50_Жамбеков_Арсен/form_50_1754281763.zip')
 //            ->saveAs($localPath)
 //            ->execute();
         $files = $result['Contents'] ?? [];
         Yii::info($files);
-//        $s3->commands()->delete('forms/31_Жамбеков_Арсен/Жамбеков_Арсен_31_1754027849.pdf')->execute();
+//        $s3->commands()->delete('forms/50_Жамбеков_Арсен/form_50_1754281763.zip')->execute();
 //        $s3->commands()->delete('forms/32_Жамбеков_Арсен/Жамбеков_Арсен_32_1754028194.pdf')->execute();
 //        $s3->commands()->delete('forms/33_Жамбеков_Арсен/Жамбеков_Арсен_33_1754028202.pdf')->execute();
 //        $s3->commands()->delete('forms/34_Жамбеков_Арсен/Жамбеков_Арсен_34_1754028233.pdf')->execute();
