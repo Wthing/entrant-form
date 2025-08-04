@@ -38,13 +38,13 @@ $config = [
                     'searchClass' => 'app\models\UserSearch'
                 ],
             ],
-            'as access' => [
-                'class' => 'mdm\admin\components\AccessControl',
-                'allowActions' => [
-                    'site/*',
-                    'admin/*',
-                ]
-            ],
+//            'as access' => [
+//                'class' => 'mdm\admin\components\AccessControl',
+//                'allowActions' => [
+//                    'site/*',
+//                    'admin/*',
+//                ]
+//            ],
         ],
     ],
 
