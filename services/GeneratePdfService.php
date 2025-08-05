@@ -85,13 +85,11 @@ class GeneratePdfService
 
         if ($err > 0){
             file_put_contents($fileErr,KalkanCrypt_GetLastErrorString());
-            die;
             $err_sign = 1;
         }
         $data = base64_decode($outSign);
 
         file_put_contents($pdf,$data);
-
 
         KalkanCrypt_Finalize();
         return true;
