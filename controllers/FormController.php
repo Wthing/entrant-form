@@ -54,27 +54,10 @@ class FormController extends Controller
         $files = $result['Contents'] ?? [];
         Yii::info($files);
 //        $s3->commands()->delete('forms/50_Жамбеков_Арсен/form_50_1754281763.zip')->execute();
-//        $s3->commands()->delete('forms/32_Жамбеков_Арсен/Жамбеков_Арсен_32_1754028194.pdf')->execute();
-//        $s3->commands()->delete('forms/33_Жамбеков_Арсен/Жамбеков_Арсен_33_1754028202.pdf')->execute();
-//        $s3->commands()->delete('forms/34_Жамбеков_Арсен/Жамбеков_Арсен_34_1754028233.pdf')->execute();
-//        $s3->commands()->delete('forms/35_Жамбеков_Арсен/Жамбеков_Арсен_35_1754028742.pdf')->execute();
-//        $s3->commands()->delete('forms/36_Жамбеков_Арсен/Жамбеков_Арсен_36_1754028795.pdf')->execute();
-//        $s3->commands()->delete('forms/37_Жамбеков_Арсен/Жамбеков_Арсен_37_1754028826.pdf')->execute();
-//        $s3->commands()->delete('forms/38_Жамбеков_Арсен/Жамбеков_Арсен_38_1754028868.pdf')->execute();
-//        $s3->commands()->delete('forms/39_Жамбеков_Арсен/Жамбеков_Арсен_39_1754029348.pdf')->execute();
-//        $s3->commands()->delete('forms/40_Жамбеков_Арсен/Жамбеков_Арсен_40_1754029528.pdf')->execute();
-//        $s3->commands()->delete('forms/41_Жамбеков_Арсен/Жамбеков_Арсен_41_1754032857.pdf')->execute();
-//        $s3->commands()->delete('forms/42_Жамбеков_Арсен/Жамбеков_Арсен_42_1754032964.pdf')->execute();
-//        $s3->commands()->delete('forms/43_Жамбеков_Арсен/Жамбеков_Арсен_43_1754033165.pdf')->execute();
-//        $s3->commands()->delete('forms/44_Жамбеков_Арсен/Жамбеков_Арсен_44_1754033299.pdf')->execute();
-//        $s3->commands()->delete('forms/45_Жамбеков_Арсен/Жамбеков_Арсен_45_1754033371.pdf')->execute();
-//        $s3->commands()->delete('forms/46_Жамбеков_Арсен/Жамбеков_Арсен_46_1754033467.pdf')->execute();
-//        $s3->commands()->delete('forms/47_Жамбеков_Арсен/Жамбеков_Арсен_47_1754033583.pdf')->execute();
-//        $s3->commands()->delete('forms/48_Жамбеков_Арсен/form_48_1754033800.zip')->execute();
-
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            $pdfService = new GeneratePdfService();
+//            $pdfService = new GeneratePdfService();
+            $pdfService = $this->generatePdfService;
             $s3Path = $pdfService->generate($model->id);
 
             $prefix = 'forms/' . $model->id . '_' . $model->surname . '_' . $model->first_name . '/';
@@ -99,7 +82,6 @@ class FormController extends Controller
             $xml->addChild('document', $base64);
 
             // 5. Сохраняем Document
-//            $document->user_id = $userId;
             $document->form_id = $model->id;
             $document->created_at = time();
             $document->save();
