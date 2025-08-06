@@ -144,7 +144,7 @@ if (YII_ENV_DEV) {
 //Yii::$container->setSingleton(IP2Location_Yii::class, function () {
 //    return new IP2Location_Yii();
 //});
-$container = Yii::$container;
-$container->set(GeneratePdfService::class);
+//$container = Yii::$container;
+//$container->set(GeneratePdfService::class);
 
 return $config;
