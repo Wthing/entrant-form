@@ -56,8 +56,8 @@ class FormController extends Controller
 //        $s3->commands()->delete('forms/50_Жамбеков_Арсен/form_50_1754281763.zip')->execute();
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
-//            $pdfService = new GeneratePdfService();
-            $pdfService = $this->generatePdfService;
+            $pdfService = new GeneratePdfService();
+//            $pdfService = $this->generatePdfService;
             $s3Path = $pdfService->generate($model->id);
 
             $prefix = 'forms/' . $model->id . '_' . $model->surname . '_' . $model->first_name . '/';
