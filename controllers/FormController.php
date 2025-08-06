@@ -45,15 +45,17 @@ class FormController extends Controller
         $s3 = Yii::$app->s3;
 
         $prefix = 'forms/';
-        $localPath = Yii::getAlias('@runtime/tmp/' . basename('forms/21_Жамбеков_Арсен/form_21_1754307868.zip'));
+//        $localPath = Yii::getAlias('@runtime/tmp/' . basename('forms/21_Жамбеков_Арсен/form_21_1754307868.zip'));
         $result = $s3->commands()->list($prefix)->execute();
-        $s3->commands()
-            ->get('forms/21_Жамбеков_Арсен/form_21_1754307868.zip')
-            ->saveAs($localPath)
-            ->execute();
+//        $s3->commands()
+//            ->get('forms/21_Жамбеков_Арсен/form_21_1754307868.zip')
+//            ->saveAs($localPath)
+//            ->execute();
         $files = $result['Contents'] ?? [];
         Yii::info($files);
-//        $s3->commands()->delete('forms/50_Жамбеков_Арсен/form_50_1754281763.zip')->execute();
+//        $s3->commands()->delete('forms/20_Жамбеков_Арсен/Жамбеков_Арсен_20_1754305137.pdf')->execute();
+//        $s3->commands()->delete('forms/21_Жамбеков_Арсен/form_21_1754307868.zip')->execute();
+//        $s3->commands()->delete('forms/23_Жамбеков_Арсен/Жамбеков_Арсен_23_1754456823.pdf')->execute();
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             $pdfService = new GeneratePdfService();
