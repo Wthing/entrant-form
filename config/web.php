@@ -19,7 +19,8 @@ $config = [
     ],
 
     'bootstrap' => [
-        'admin', // required
+        'admin',
+        'log',// required
     ],
     'modules' => [
         'admin' => [
