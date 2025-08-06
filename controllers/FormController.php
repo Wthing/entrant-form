@@ -18,6 +18,12 @@ class FormController extends Controller
     public const APPLICANT = 'applicant';
     public const PARENT = 'parent';
     public const SECRETARY = 'secretary';
+    private GeneratePdfService $generatePdfService;
+
+    public function __construct($id, $module, GeneratePdfService $generatePdfService, array $config = [])
+    {
+        $this->generatePdfService = $generatePdfService;
+    }
 
     public function behaviors()
     {
@@ -58,9 +64,7 @@ class FormController extends Controller
 //        $s3->commands()->delete('forms/23_Жамбеков_Арсен/Жамбеков_Арсен_23_1754456823.pdf')->execute();
         $model = new Form();
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            $pdfService = new GeneratePdfService();
-//            $pdfService = $this->generatePdfService;
-            $s3Path = $pdfService->generate($model->id);
+            $s3Path = $this->generatePdfService->generate($model->id);
 
             $prefix = 'forms/' . $model->id . '_' . $model->surname . '_' . $model->first_name . '/';
             $result = $s3->commands()->list($prefix)->execute();

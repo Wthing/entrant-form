@@ -1,5 +1,6 @@
 <?php
 
+use app\services\GeneratePdfService;
 use diecoding\aws\s3\Service;
 
 $params = require __DIR__ . '/params.php';
@@ -143,6 +144,7 @@ if (YII_ENV_DEV) {
 //Yii::$container->setSingleton(IP2Location_Yii::class, function () {
 //    return new IP2Location_Yii();
 //});
-
+$container = Yii::$container;
+$container->set(GeneratePdfService::class);
 
 return $config;
