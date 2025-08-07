@@ -34,9 +34,9 @@ class FormController extends Controller
 //            ->execute();
         $files = $result['Contents'] ?? [];
         Yii::info($files);
-        $s3->commands()->delete('forms/14_Жамбеков_Арсен/form_14_1753873034.zip')->execute();
-//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_11_1753870023.pdf')->execute();
-//        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_12_1753870053.pdf')->execute();
+        $s3->commands()->delete('forms/54_sssssss_ssssssssssssss/sssssss_ssssssssssssss_54_1754465048.pdf')->execute();
+        $s3->commands()->delete('forms/53_aaa_aaaaaaaaaaaaa/aaa_aaaaaaaaaaaaa_53_1754464973.pdf')->execute();
+        $s3->commands()->delete('forms/52_aaa_aaaa/aaa_aaaa_52_1754464849.pdf')->execute();
 //        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_9_1753869933.pdf')->execute();
 //        $s3->commands()->delete('forms/_Жамбеков_Арсен/Жамбеков_Арсен_10_1753869980.pdf')->execute();
 
